@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 21+ variant: ?android:colorBackground follows the system light/dark setting, so the
+     launch window matches the night theme without a second drawable. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="?android:colorBackground" />
+
+    <!-- Uncomment and supply res/drawable/launch_image.png to show a logo while the engine
+         warms up. See res/README.md — no binary image is committed.
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/launch_image" />
+    </item>
+    -->
+</layer-list>

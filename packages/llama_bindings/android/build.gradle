@@ -1,0 +1,63 @@
+group 'net.salebee.llama_bindings'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.5.0'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'net.salebee.llama_bindings'
+    compileSdk 35
+
+    // NDK r27+ defaults to 16 KB-aligned shared libraries, which Android 15 requires.
+    // An older NDK produces .so files that will refuse to load on 15+ devices.
+    ndkVersion '27.0.12077973'
+
+    defaultConfig {
+        minSdk 26
+
+        externalNativeBuild {
+            cmake {
+                // arm64 only. armeabi-v7a cannot address enough memory to be useful for
+                // a multi-gigabyte model, and shipping it just inflates the APK.
+                abiFilters 'arm64-v8a'
+                arguments '-DANDROID_STL=c++_shared'
+                cppFlags '-std=c++17 -O3 -fvisibility=hidden -fvisibility-inlines-hidden'
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    externalNativeBuild {
+        cmake {
+            path '../src/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    packagingOptions {
+        // The prebuilt llama.cpp libraries are already stripped and signed into the AAR.
+        jniLibs {
+            useLegacyPackaging false
+        }
+    }
+}

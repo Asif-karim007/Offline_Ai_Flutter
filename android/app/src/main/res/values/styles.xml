@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown from the moment the process starts until the Flutter engine draws its first
+         frame. Its window background is the launch drawable, so the transition into the
+         app's own UI has no flash of white. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+
+    <!-- Swapped in by FlutterActivity once the first frame is up (see the
+         io.flutter.embedding.android.NormalTheme meta-data in AndroidManifest.xml). -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

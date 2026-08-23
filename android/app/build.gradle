@@ -1,0 +1,115 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // Must come after the Android and Kotlin plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// Optional release signing. Create android/key.properties (git-ignored) with
+// storeFile / storePassword / keyAlias / keyPassword to sign real builds; without it the
+// release build falls back to the debug key so `flutter build apk --release` still works
+// locally for benchmarking.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+android {
+    namespace = "net.salebee.offline_ai_chat"
+    compileSdk = 35
+
+    // Must match packages/llama_bindings/android/build.gradle exactly. NDK r27 is what
+    // produces 16 KB-aligned shared libraries; Android 15 refuses to load anything else.
+    ndkVersion = "27.0.12077973"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId = "net.salebee.offline_ai_chat"
+
+        // 26 is the floor the plugin's CMake build targets. It is also the first release
+        // where the ART allocator and the 64-bit-only device population make a
+        // multi-gigabyte mmapped model realistic.
+        minSdk = 26
+        targetSdk = 35
+
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+
+        ndk {
+            // arm64 only, matching the plugin and scripts/build_llama_android.sh.
+            // armeabi-v7a cannot address enough memory to hold a useful model, and x86_64
+            // would only serve the emulator — where inference is unusably slow anyway.
+            abiFilters "arm64-v8a"
+        }
+    }
+
+    androidResources {
+        // A GGUF file is already quantized; deflating it saves nothing and costs a full
+        // decompression pass (and a same-sized transient buffer) every time the asset is
+        // read on first launch. Keeping it STORED also lets the first-launch copy stream
+        // straight out of the APK.
+        // (Method form rather than `noCompress += [...]`: the DSL property is a read-only
+        // collection, so the Groovy compound-assignment form needs a setter that is not
+        // guaranteed to exist.)
+        noCompress "gguf"
+    }
+
+    packagingOptions {
+        jniLibs {
+            // false => android:extractNativeLibs="false" in the merged manifest, so the
+            // .so files are mmapped directly out of the (uncompressed, aligned) APK
+            // instead of being unpacked into /data at install time. This is what makes the
+            // NDK r27 16 KB segment alignment actually reach the loader on Android 15 —
+            // and it is also why the manifest must NOT hardcode android:extractNativeLibs.
+            useLegacyPackaging = false
+        }
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            // The Flutter debug engine and the plugin's CMake output are both large; the
+            // debug APK is expected to be big.
+            signingConfig = signingConfigs.debug
+        }
+        release {
+            signingConfig = keystorePropertiesFile.exists()
+                    ? signingConfigs.release
+                    : signingConfigs.debug
+
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+            )
+        }
+        profile {
+            initWith debug
+            matchingFallbacks = ["debug", "release"]
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}

@@ -1,0 +1,28 @@
+name: llama_bindings
+description: >-
+  Low-level dart:ffi bindings to llama.cpp through a plain-C shim that contains all struct
+  layouts and catches C++ exceptions before they can cross the FFI boundary.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.3
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true

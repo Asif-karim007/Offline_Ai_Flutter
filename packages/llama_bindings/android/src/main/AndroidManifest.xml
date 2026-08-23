@@ -1,0 +1,4 @@
+<!-- The namespace lives in build.gradle; AGP 8 would synthesise this file, but an FFI
+     plugin with no Java/Kotlin sources is exactly the shape where that has historically
+     been fragile, and an empty manifest costs nothing. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fallback launch background for API < 21. Kept even though minSdk is 26, because
+     drawable-v21/ only shadows this file on v21+ and a resource with no default
+     configuration is a lint error. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+
+    <!-- Uncomment and supply res/drawable/launch_image.png to show a logo while the engine
+         warms up. See res/README.md — no binary image is committed.
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/launch_image" />
+    </item>
+    -->
+</layer-list>

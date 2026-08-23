@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        Same reason as the debug variant: profile builds keep the VM service alive so
+        DevTools can attach for timeline traces. Profile mode is how tokens/second is
+        measured on a real device — a debug build's numbers are meaningless.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

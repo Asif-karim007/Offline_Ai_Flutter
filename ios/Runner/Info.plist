@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Offline AI Chat</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>offline_ai_chat</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+
+	<!--
+		Model sideloading. Together these two keys make the app's Documents directory
+		visible in Files (under "On My iPhone -> Offline AI Chat") and let the app open
+		documents in place rather than copying them into a sandboxed inbox first:
+
+		  UIFileSharingEnabled             — exposes Documents/ over iTunes/Finder file
+		                                     sharing and in the Files app.
+		  LSSupportsOpeningDocumentsInPlace — the app can be handed a URL to a file that
+		                                     stays where the user put it.
+
+		This is how a user drops a multi-gigabyte GGUF onto the device without a download:
+		AirDrop or drag it into the app's Files folder, then pick it in the model manager.
+
+		Note that the app still copies an imported GGUF into Application Support and loads
+		only from that copy — it never mmaps a security-scoped URL owned by another
+		process, which would be revoked out from under llama.cpp mid-generation.
+	-->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+
+	<!--
+		Declares .gguf so Files, Mail, and AirDrop offer "Open in Offline AI Chat" and the
+		document picker can filter for it. The type is exported (this app defines it)
+		and conforms to public.data because a GGUF is an opaque binary container.
+	-->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>net.salebee.gguf</string>
+			<key>UTTypeDescription</key>
+			<string>GGUF Model</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>gguf</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>GGUF Model</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>net.salebee.gguf</string>
+			</array>
+		</dict>
+	</array>
+
+	<!--
+		Portrait plus both landscapes on iPhone; everything on iPad. Generation is not
+		interrupted by a rotation — the engine runs on its own isolate and the UI rebuild
+		is independent of it.
+	-->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!--
+		UIBackgroundModes is deliberately absent, and this is a design decision rather than
+		an oversight.
+
+		Inference is foreground-only. A background mode would be needed to keep generating
+		after the user leaves the app, and none of the available modes honestly describe
+		what this app does: there is no audio, no location, no VoIP, and `processing` /
+		`fetch` are for short, system-scheduled, deferrable work — not for a 2 GB resident
+		process burning the CPU for a minute. Requesting one to keep a token stream alive
+		is exactly the abuse App Review rejects, and on a memory-pressured device the app
+		would be the first thing killed anyway.
+
+		The consequence, which the UI has to handle rather than hide: backgrounding the app
+		mid-generation suspends the isolate, and iOS may terminate the process while
+		suspended. The engine's cancellation flag makes that a clean stop rather than a
+		corrupt KV cache.
+	-->
+
+	<!--
+		NSAppTransportSecurity is deliberately absent too. Absent means ATS defaults:
+		TLS 1.2+, no arbitrary loads, no cleartext HTTP. Web search and model download are
+		the only network callers and both are HTTPS. Adding even an empty dict here starts
+		a conversation with App Review that this app has no reason to have — this mirrors
+		android:usesCleartextTraffic="false" on the other platform.
+
+		No usage-description strings are present either (no NSCameraUsageDescription,
+		NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription, …): document import
+		goes through UIDocumentPickerViewController, which grants access per-file without
+		a permission prompt, and nothing else touches a protected resource.
+	-->
+
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+</dict>
+</plist>

@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        The Flutter debug engine serves the Dart VM service (hot reload, DevTools) over a
+        local socket, which requires INTERNET even though the app itself never dials out in
+        this configuration. Debug-only: it is merged into debug builds and nothing else.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

@@ -1,0 +1,97 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        INTERNET is required only by the two optional network features: web search (off by
+        default, and inert until a search provider API key is configured) and downloading a
+        model from the model manager. Nothing in the generation path makes a network call —
+        inference, retrieval, and memory compaction are entirely on-device. Removing this
+        permission would leave the app fully functional for offline chat.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Offline AI Chat"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        android:largeHeap="true">
+
+        <!--
+            largeHeap: the model weights themselves are native allocations (llama.cpp
+            mmaps/mallocs them outside the managed heap), so this flag does not raise their
+            ceiling directly. It matters for two other reasons, both real on a
+            multi-gigabyte model:
+
+              1. It raises the managed-heap cap for the first-launch asset copy and for
+                 file import through the platform channels, which move the GGUF in chunks
+                 through Java byte arrays.
+              2. It marks the process as memory-hungry, which several vendor memory
+                 policies and the ActivityManager's own trimming heuristics consult before
+                 deciding which background process to kill. A 2-4 GB resident process
+                 without this flag is a much easier target.
+
+            It is not a substitute for choosing a model that fits the device; see the
+            "Memory-pressure termination" row of the README's debugging table.
+        -->
+
+        <!--
+            Deliberately NOT set here: android:enableOnBackInvokedCallback. Predictive back
+            is opt-in below targetSdk 36, and turning it on changes who handles the back
+            gesture — the system, not Flutter's navigator — on Flutter versions whose
+            framework-side support is incomplete. This project's floor is Flutter 3.22, and
+            "leaving a non-empty temporary chat pops a confirmation" is exactly the kind of
+            behaviour that silently breaks when the system finishes the activity instead.
+            Turn it on deliberately, with a device test, not by default.
+        -->
+
+        <!--
+            Deliberately NOT set here: android:extractNativeLibs. It is derived from
+            packagingOptions.jniLibs.useLegacyPackaging in app/build.gradle (false =>
+            extractNativeLibs=false). Hardcoding it in the manifest would silently win over
+            the packaging option and can leave the APK's .so files packaged in a way that
+            breaks 16 KB page alignment on Android 15.
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!--
+                Shown while the Flutter engine warms up. On this app the wait is longer than
+                usual, because the first frame is gated on the model manager's disk scan.
+            -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!--
+        Required so the text-selection toolbar can enumerate PROCESS_TEXT handlers on
+        Android 11+. This is a package-visibility query, not a permission.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

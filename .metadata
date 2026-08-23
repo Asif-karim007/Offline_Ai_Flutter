@@ -1,0 +1,33 @@
+# This file tracks properties of this Flutter project.
+# Used by the Flutter tool to assess capabilities and perform upgrades etc.
+#
+# This file should be version controlled.
+#
+# The revision below is deliberately all-zero. This project was ported by hand from a Swift
+# app rather than produced by `flutter create`, so there is no base revision for
+# `flutter migrate` to diff against. The `project_type` and `migration` entries are the parts
+# that matter: they tell the tool this is an app (not a plugin or module) with android and
+# ios platform directories, which is what keeps `flutter create --platforms=...` from
+# re-scaffolding the wrong shape over the top of it.
+
+version:
+  revision: "0000000000000000000000000000000000000000"
+  channel: "stable"
+
+project_type: app
+
+migration:
+  platforms:
+    - platform: root
+      create_revision: null
+      base_revision: null
+    - platform: android
+      create_revision: null
+      base_revision: null
+    - platform: ios
+      create_revision: null
+      base_revision: null
+
+  unmanaged_files:
+    - 'lib/main.dart'
+    - 'ios/Runner.xcodeproj/project.pbxproj'

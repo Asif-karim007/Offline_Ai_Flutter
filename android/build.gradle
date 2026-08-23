@@ -1,0 +1,27 @@
+// Root project build file. Plugin versions live in settings.gradle (declarative style),
+// so nothing here declares a buildscript classpath.
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Flutter's tooling expects the Android build outputs under <project>/build, not
+// <project>/android/build.
+rootProject.buildDir = "../build"
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+
+// Plugin subprojects (llama_bindings among them) have to be configured after :app so the
+// Flutter Gradle plugin has already resolved compileSdk/minSdk defaults for them.
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

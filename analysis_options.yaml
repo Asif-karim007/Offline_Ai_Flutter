@@ -1,0 +1,30 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # A missing await in the generation pipeline is a bug, not a style question.
+    unawaited_futures: error
+    invalid_use_of_visible_for_testing_member: error
+  exclude:
+    - "**/*.g.dart"
+    - ".build/**"
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_empty_else
+    - avoid_print
+    - avoid_relative_lib_imports
+    - cancel_subscriptions
+    - close_sinks
+    - directives_ordering
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_final_locals
+    - prefer_single_quotes
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - use_super_parameters

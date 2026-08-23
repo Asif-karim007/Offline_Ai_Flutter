@@ -1,0 +1,10 @@
+// Included by the Debug build configuration of the Runner target.
+//
+// The `#include?` is optional on purpose: Pods-Runner.debug.xcconfig does not exist until
+// `pod install` has run, and a hard include would make a fresh clone fail to open in Xcode.
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
+
+// Generated.xcconfig is written by the Flutter tool (`flutter pub get` / `flutter build`)
+// and is git-ignored. It carries FLUTTER_ROOT, FLUTTER_APPLICATION_PATH, the build
+// name/number that Info.plist interpolates, and the local engine settings.
+#include "Generated.xcconfig"

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ replacement for android:fullBackupContent. `android:allowBackup="false"`
+    already blocks cloud backup, but it does NOT block device-to-device transfer — that path
+    is governed here and has to be closed separately.
+
+    Nothing this app stores should leave the device: the SQLite conversation store, the
+    installed GGUF files (multi-gigabyte, and re-downloadable), and the secure-storage
+    entries (the optional search provider API key, which lives in the Keystore-backed store
+    and must never be copied off-device in plaintext).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
