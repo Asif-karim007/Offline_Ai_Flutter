@@ -108,7 +108,7 @@ sealed class ModelResolution {
     required bool bundledModelWasCopied,
   }) = ResolvedModel;
 
-  const factory ModelResolution.needsImport() = NeedsImport;
+  const factory ModelResolution.needsDownload() = NeedsDownload;
 }
 
 final class ResolvedModel extends ModelResolution {
@@ -130,14 +130,14 @@ final class ResolvedModel extends ModelResolution {
   int get hashCode => Object.hash(fileName, bundledModelWasCopied);
 }
 
-final class NeedsImport extends ModelResolution {
-  const NeedsImport();
+final class NeedsDownload extends ModelResolution {
+  const NeedsDownload();
 
   @override
-  bool operator ==(Object other) => other is NeedsImport;
+  bool operator ==(Object other) => other is NeedsDownload;
 
   @override
-  int get hashCode => 'needsImport'.hashCode;
+  int get hashCode => 'needsDownload'.hashCode;
 }
 
 /// First-launch and later-launch model discovery.
@@ -214,7 +214,7 @@ class ModelBootstrapService {
       );
     }
 
-    return const NeedsImport();
+    return const NeedsDownload();
   }
 
   /// Whether the app was actually built with a bundled model.
@@ -228,7 +228,7 @@ class ModelBootstrapService {
       return manifest.listAssets().contains(bundledAssetKey);
     } on Exception {
       // No manifest at all — a test harness with a stub bundle, for instance. Treated as
-      // "nothing bundled", which lands on the import screen rather than on an error.
+      // "nothing bundled", which lands on the download screen rather than on an error.
       return false;
     }
   }

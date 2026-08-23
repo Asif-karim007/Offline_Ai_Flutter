@@ -50,7 +50,7 @@ lib/
   agent/retrieval/   Hybrid (lexical + semantic) scoring shared by memory and documents
   agent/benchmark/   Debug-only on-device benchmarking harness
   persistence/       sqflite schema + ConversationRepository
-  model_management/  Model file storage, import, first-launch bootstrap, settings
+  model_management/  Model file storage, catalog, download, first-launch bootstrap, settings
   viewmodels/        ChangeNotifier view models, one per Swift @Observable original
   views/             Flutter widgets
   utilities/         Small stateless helpers
@@ -252,7 +252,7 @@ Check afterwards that `gradle-wrapper.properties` still names `gradle-8.9-all.zi
 
 ### 5.3 Model weights
 
-Section 6. Optional if you are happy to import a model at first launch.
+Section 6. Optional if you are happy to download a model from the catalog at first launch.
 
 ## 6. Model resource setup
 
@@ -270,41 +270,71 @@ directory exactly once, marks the copy excluded from backup, and loads only from
 The bundled original is never modified and never mmapped in place.
 
 This repo does **not** ship that file. Model weights are large binary assets that do not
-belong in git history — see `assets/models/README.md`.
+belong in git history — see `assets/models/README.md`. Without it, the catalog download
+below is how a model gets onto the device — it is the only way, so a first run needs a
+network connection once.
 
-### Recommended models (2026)
+### The catalog (`lib/model_management/model_catalog.dart`)
 
-| Role | Model | Size | Notes |
-|---|---|---|---|
-| Bundled default | **Qwen3.5-0.8B-Q4_K_M** | 533 MB | Comfortable on any arm64 device from the last few years, and still a genuinely instruction-tuned chat model with a usable embedded chat template. |
-| Download: balanced | **Qwen3.5-2B** (Q4_K_M) | 1.28 GB | The sweet spot on a recent flagship. Noticeably better at multi-step instructions and at the planner's structured JSON. |
-| Download: largest | **Qwen3.5-4B** (Q4_K_M) | 2.74 GB | 8 GB of device RAM is the realistic floor. Expect memory-pressure terminations on anything smaller, especially on Android where the app competes with more background work. |
-| Embeddings | **multilingual-e5-small**, Q8_0 | ~130 MB | For semantic retrieval. **Not wired up in this version** — see section 12. |
+`ModelCatalog` is the single source of truth for what can be downloaded: the model picker, the
+first-run screen and the bundled-asset bootstrap all read from it, so adding a model is a
+one-file change. These are the entries as they stand:
 
-The two larger models are downloads rather than bundles for an obvious reason: a 2.74 GB app
-binary is not shippable. The model manager fetches them over HTTPS with a resumable download
-and verifies size and hash before installing.
+| Tier | Model | File | Size | Min. RAM | Notes |
+|---|---|---|---|---|---|
+| Bundled / default | **Qwen3.5-0.8B-Q4_K_M** | `Qwen3.5-0.8B-Q4_K_M.gguf` | 533 MB | 3 GB | Recommended starting point. 201 languages including Bengali. Comfortable on any arm64 device from the last few years, and a genuinely instruction-tuned chat model with a usable embedded chat template. |
+| Recommended | **Qwen3.5-2B-Q4_K_M** | `Qwen3.5-2B-Q4_K_M.gguf` | 1.28 GB | 4 GB | Measured 39 tok/s at 1.48 GB peak on A19 Pro. Noticeably better at multi-step instructions and at the planner's structured JSON. |
+| Max | **Qwen3.5-4B-Q4_K_M** | `Qwen3.5-4B-Q4_K_M.gguf` | 2.74 GB | 8 GB | Weights alone are 2.74 GB before KV cache. Expect memory-pressure terminations below 8 GB, especially on Android where the app competes with more background work. |
+| Embedding | **multilingual-e5-small Q8_0** | `multilingual-e5-small-Q8_0.gguf` | 126 MiB | 2 GB | 384-dimension embeddings for hybrid retrieval. Not a chat model, never offered as one. **Not wired up in this version** — see section 12. |
 
-Any other instruction-tuned GGUF with an embedded chat template works. The app **rejects a
-model with no usable chat template rather than guessing one**, so base (non-instruct)
-conversions fail to load by design.
+The three Qwen entries are Apache-2.0, ChatML, 256K trained context, and come from Unsloth's
+GGUF repositories; the embedding model is MIT. `ModelCatalog.chatModels` is the first three —
+that is exactly what the download screen lists. Every entry resolves to a Hugging Face
+`resolve/main/<file>` URL, and `revision` defaults to the branch tip: **pin a commit SHA
+there before shipping**, or a re-upload silently delivers different weights than the sizes in
+this table describe.
+
+Each entry also declares the device RAM below which it should not be offered — the "Min. RAM"
+column — and `ModelCatalog.fittingMemory()` applies it, so the 4B entry can be kept off a
+phone that cannot hold it. A device that reports no memory figure at all gets the unfiltered
+list rather than an empty one.
+
+**On the old recommended download.** The first-run screen used to hard-code one Hugging Face
+URL — `Qwen3-0.6B-Q8_0`, 639.4 MB — with the size written as a literal in the view so the
+button label could be formatted. Those constants are gone. The recommendation is now
+`ModelCatalog.bundledDefault`, which resolves to `ModelCatalog.qwen35Point8B`, i.e.
+**Qwen3.5-0.8B-Q4_K_M at 533 MB** — the same file named by `assets/models/` above. This is a
+deliberate departure from the porting rule that copies user-visible strings verbatim: the
+screen that carried them no longer exists in the same form.
+
+Any other instruction-tuned GGUF with an embedded chat template still *loads* if you get it
+into `<application support>/Models` yourself (a debug-build `adb push`, say) — the app scans
+that directory and lists whatever it finds. There is no in-app path for it. The app
+**rejects a model with no usable chat template rather than guessing one**, so base
+(non-instruct) conversions fail to load by design.
 
 Qwen3.5 requires the b9222 llama.cpp pin (section 4). A model that loads under the Swift
 app's older framework may simply refuse to load here, and vice versa.
 
-### Importing a model through Files
+### Downloading a model
 
-If no model is installed, the app shows a setup screen with an **Import GGUF Model** button
-that opens the platform document picker. The picked file is validated (exists, readable,
-non-empty, `.gguf` extension), copied into application support, and only ever loaded from
-that copy — never run directly from a security-scoped URL owned by another process, which
-could be revoked mid-generation.
+Downloading from the catalog is the only way a model reaches the device — hand-importing a
+`.gguf` through the document picker was removed, along with the iOS `.gguf` file association
+and the Files-sharing keys that existed to serve it (`ios/Runner/Info.plist`).
 
-On iOS you can also put the file where the app can see it first: `UIFileSharingEnabled` and
-`LSSupportsOpeningDocumentsInPlace` are set (`ios/Runner/Info.plist`), so the app appears
-under **On My iPhone → Offline AI Chat** in Files and you can AirDrop or drag a GGUF
-straight in. On Android, any Storage Access Framework location the picker can reach works,
-including a USB-attached drive.
+If no model is installed, the app shows a setup screen listing `ModelCatalog.chatModels` with
+a **Download** button per row; the same list is reachable later from the model manager's
+**Download a Model** row. The download runs over HTTPS and reports determinate progress when
+the server sends a length, a bytes-only spinner when it does not. It is resumable — a partial
+transfer is kept at `<file>.part` and continued with a `Range` header, and the `.part` file is
+renamed into place only once the transfer completes, so an interrupted download is never
+mistaken for an installed model. The finished file lands in
+`<application support>/Models`, which is where the engine loads from. That directory is not
+user-visible on either platform: on Android it is the app's private files directory, and on
+iOS it is under `Library/`, which file sharing does not expose.
+
+A model is downloaded once and stays installed. Switching between installed models, and
+deleting one to reclaim space, are both in the model manager.
 
 ## 7. Running it
 
@@ -336,8 +366,10 @@ Use `--release` (or at least `--profile`) for anything you intend to judge perfo
 debug build's Dart is JIT-compiled and its native code is unoptimized; tokens/second in
 debug mean nothing.
 
-On first launch either the bundled model copies in automatically, or you get the **Import
-GGUF Model** screen.
+On first launch either the bundled model copies in automatically, or — the usual case, since
+this repo ships no GGUF — you get the model catalog screen and download one (section 6). That
+first download is the one moment the app needs a network connection; everything after it works
+in Airplane Mode.
 
 ### Airplane Mode test
 

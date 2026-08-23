@@ -17,11 +17,11 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "net.salebee.offline_ai_chat"
-    compileSdk = 35
+    compileSdk = 36
 
-    // Must match packages/llama_bindings/android/build.gradle exactly. NDK r27 is what
-    // produces 16 KB-aligned shared libraries; Android 15 refuses to load anything else.
-    ndkVersion = "27.0.12077973"
+    // Must match packages/llama_bindings/android/build.gradle exactly. NDK r28 retains
+    // the 16 KB alignment required on Android 15 and satisfies Flutter's jni plugin.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -68,7 +68,7 @@ android {
             // false => android:extractNativeLibs="false" in the merged manifest, so the
             // .so files are mmapped directly out of the (uncompressed, aligned) APK
             // instead of being unpacked into /data at install time. This is what makes the
-            // NDK r27 16 KB segment alignment actually reach the loader on Android 15 —
+            // NDK r28 16 KB segment alignment actually reach the loader on Android 15 —
             // and it is also why the manifest must NOT hardcode android:extractNativeLibs.
             useLegacyPackaging = false
         }

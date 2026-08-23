@@ -6,8 +6,6 @@ import '../llm/model_metadata_reader.dart';
 import '../llm/stub_chat_engine.dart';
 import '../model_management/app_settings.dart';
 import '../model_management/model_bootstrap_service.dart';
-import '../model_management/model_downloader.dart';
-import '../model_management/model_importer.dart';
 import '../model_management/model_store.dart';
 import '../persistence/conversation_repository.dart';
 import '../persistence/sqflite_conversation_repository.dart';
@@ -16,7 +14,7 @@ import '../utilities/logger.dart';
 /// The loading states the root view switches on, re-exported so a view model importing the
 /// coordinator does not also have to know which model-management file declares them.
 export '../model_management/model_bootstrap_service.dart'
-    show AppLoadingState, FailedLoading, ModelResolution, NeedsImport, ResolvedModel;
+    show AppLoadingState, FailedLoading, ModelResolution, NeedsDownload, ResolvedModel;
 
 /// Start-up failed in a way the app cannot continue from.
 ///
@@ -56,7 +54,6 @@ class AppCoordinator {
     required this.settings,
     required this.modelStore,
     required this.bootstrapService,
-    required this.modelImporter,
     required this.metadataReader,
   });
 
@@ -107,10 +104,9 @@ class AppCoordinator {
       chatEngine: chatEngine,
       settings: settings,
       modelStore: modelStore,
-      // Created from the store, as the Swift `AppViewModel.init` did — they are pure
-      // functions of it and hold no state of their own.
+      // Created from the store, as the Swift `AppViewModel.init` did — a pure function of
+      // it, holding no state of its own.
       bootstrapService: ModelBootstrapService(modelStore: modelStore),
-      modelImporter: ModelImporter(modelStore),
       metadataReader: const ModelMetadataReader(),
     );
 
@@ -131,8 +127,6 @@ class AppCoordinator {
 
   final ModelBootstrapService bootstrapService;
 
-  final ModelImporter modelImporter;
-
   final ModelMetadataReader metadataReader;
 
   /// Re-reads the keychain on every call, and is meant to be called per request rather than
@@ -145,13 +139,6 @@ class AppCoordinator {
   /// selects the Brave provider; a null one selects the zero-configuration fallback, which
   /// is why web search works out of the box.
   Future<String?> webSearchApiKeyProvider() => settings.currentBraveApiKey();
-
-  /// A fresh downloader per download.
-  ///
-  /// Not a shared instance: a downloader owns the state of one transfer — its subscription,
-  /// its partial file, its cancellation flag — and reusing one across two downloads would
-  /// have the second cancel the first.
-  ModelDownloader createModelDownloader() => ModelDownloader();
 
   /// Releases everything the graph holds. Called when the app is torn down, and by tests
   /// between cases.

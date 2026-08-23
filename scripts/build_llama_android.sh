@@ -81,14 +81,18 @@ done
 
 mkdir -p "${BUILD_ROOT}"
 
-if [[ ! -d "${SRC_DIR}" ]]; then
-  echo "==> cloning llama.cpp"
-  git clone https://github.com/ggml-org/llama.cpp.git "${SRC_DIR}"
+if [[ ! -d "${SRC_DIR}/.git" ]]; then
+  echo "==> initializing llama.cpp source checkout"
+  mkdir -p "${SRC_DIR}"
+  git -C "${SRC_DIR}" init
+  git -C "${SRC_DIR}" remote add origin https://github.com/ggml-org/llama.cpp.git
 fi
 
 echo "==> checking out ${LLAMA_CPP_REF}"
-git -C "${SRC_DIR}" fetch --tags --force
-git -C "${SRC_DIR}" checkout --detach "${LLAMA_CPP_REF}"
+# Fetch only the pinned revision. A full llama.cpp history is several gigabytes and is not
+# needed for this reproducible cross-build.
+git -C "${SRC_DIR}" fetch --depth 1 --force origin "${LLAMA_CPP_REF}"
+git -C "${SRC_DIR}" checkout --detach --force FETCH_HEAD
 echo "    HEAD is now $(git -C "${SRC_DIR}" rev-parse HEAD)"
 
 # --- build ----------------------------------------------------------------------------
@@ -99,10 +103,10 @@ for ABI in ${ABIS}; do
   BUILD_DIR="${BUILD_ROOT}/android-${ABI}"
   rm -rf "${BUILD_DIR}"
 
-  EXTRA_ARGS=()
+  EXTRA_ARGS=(-DGGML_OPENCL=OFF)
   if [[ "${WANT_OPENCL}" == "1" ]]; then
     echo "    including the Adreno OpenCL backend"
-    EXTRA_ARGS+=(-DGGML_OPENCL=ON)
+    EXTRA_ARGS=(-DGGML_OPENCL=ON)
   fi
 
   cmake -S "${SRC_DIR}" -B "${BUILD_DIR}" -G Ninja \

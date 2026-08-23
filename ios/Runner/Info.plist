@@ -30,67 +30,38 @@
 	<string>Main</string>
 
 	<!--
-		Model sideloading. Together these two keys make the app's Documents directory
-		visible in Files (under "On My iPhone -> Offline AI Chat") and let the app open
-		documents in place rather than copying them into a sandboxed inbox first:
+		Deliberately absent: the model-sideloading keys. Four keys used to live here and all
+		four existed for one feature — hand-importing a GGUF — which no longer exists. The
+		catalog download in the model manager is now the only way a model reaches the device,
+		so each of them was a promise the app can no longer keep:
 
-		  UIFileSharingEnabled             — exposes Documents/ over iTunes/Finder file
-		                                     sharing and in the Files app.
-		  LSSupportsOpeningDocumentsInPlace — the app can be handed a URL to a file that
-		                                     stays where the user put it.
+		  CFBundleDocumentTypes / UTExportedTypeDeclarations (net.salebee.gguf)
+		      Declared the app as the owner-rank handler for .gguf, which is what made Files,
+		      Mail and AirDrop offer "Open in Offline AI Chat". There is nothing left to open
+		      into: the app has no `application(_:open:options:)` handler (see
+		      AppDelegate.swift) and no importer behind it, so accepting the open would dead-end.
 
-		This is how a user drops a multi-gigabyte GGUF onto the device without a download:
-		AirDrop or drag it into the app's Files folder, then pick it in the model manager.
+		  UIFileSharingEnabled
+		      Exposed Documents/ in Files and over iTunes/Finder sharing, purely so a user
+		      could drop a multi-gigabyte GGUF in and then pick it. It does not expose
+		      downloaded models: those live in Library/Application Support/Models, which file
+		      sharing never shows. Nothing else of this app's writes to Documents/ either —
+		      SqfliteConversationRepository deliberately puts the chat database in Application
+		      Support rather than sqflite's default Documents path *because* this key would
+		      expose it. Leaving it on would publish an empty, user-writable folder and re-arm
+		      that trap for the next thing that reaches for a default path.
 
-		Note that the app still copies an imported GGUF into Application Support and loads
-		only from that copy — it never mmaps a security-scoped URL owned by another
-		process, which would be revoked out from under llama.cpp mid-generation.
+		  LSSupportsOpeningDocumentsInPlace
+		      Only meaningful next to a document type: it says the app can be handed a URL to a
+		      file that stays where the user put it. With the .gguf declaration gone nothing
+		      hands this app a URL at all.
+
+		Attaching documents to a chat is unaffected and needs none of these. It runs through
+		file_picker -> UIDocumentPickerViewController, which grants access per pick with no
+		Info.plist declaration and no permission prompt, and copies the file into the app's own
+		sandbox before returning a path — so there is no security-scoped resource to open and
+		nothing here to declare. See lib/agent/documents/local_document_manager.dart.
 	-->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-
-	<!--
-		Declares .gguf so Files, Mail, and AirDrop offer "Open in Offline AI Chat" and the
-		document picker can filter for it. The type is exported (this app defines it)
-		and conforms to public.data because a GGUF is an opaque binary container.
-	-->
-	<key>UTExportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>net.salebee.gguf</string>
-			<key>UTTypeDescription</key>
-			<string>GGUF Model</string>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-			</array>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>gguf</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>GGUF Model</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Owner</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>net.salebee.gguf</string>
-			</array>
-		</dict>
-	</array>
 
 	<!--
 		Portrait plus both landscapes on iPhone; everything on iPad. Generation is not

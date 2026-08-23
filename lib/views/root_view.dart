@@ -46,9 +46,9 @@ class _RootViewState extends State<RootView> {
       return const MainSplitView();
     }
     if (state == AppLoadingState.needsModel) {
-      return ModelSetupView(
-        onImport: (path) => unawaited(appViewModel.importModel(path)),
-      );
+      // No callback: the setup screen reaches `AppViewModel` through the provider itself,
+      // now that downloading is the only route in and the import callback is gone.
+      return const ModelSetupView();
     }
     return SplashView(
       state: state,

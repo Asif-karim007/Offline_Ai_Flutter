@@ -6,7 +6,6 @@ import '../domain/local_model_info.dart';
 import '../llm/chat_engine.dart';
 import '../llm/model_metadata_reader.dart';
 import '../model_management/app_settings.dart';
-import '../model_management/model_importer.dart';
 import '../model_management/model_store.dart';
 import 'error_text.dart';
 
@@ -19,13 +18,11 @@ class ModelManagerViewModel extends ChangeNotifier {
     required AppSettings settings,
     ModelMetadataReader metadataReader = const ModelMetadataReader(),
   })  : _modelStore = modelStore,
-        _modelImporter = ModelImporter(modelStore),
         _chatEngine = chatEngine,
         _settings = settings,
         _metadataReader = metadataReader;
 
   final ModelStore _modelStore;
-  final ModelImporter _modelImporter;
   final ChatEngine _chatEngine;
   final AppSettings _settings;
   final ModelMetadataReader _metadataReader;
@@ -82,13 +79,16 @@ class ModelManagerViewModel extends ChangeNotifier {
     }
   }
 
-  /// Importing a model activates it. That is the whole point of the gesture: a user who picks
-  /// a `.gguf` out of Files wants to use it, not to add it to a list.
-  Future<void> importModel(String pickedPath) async {
+  /// Adopts a model that has just finished downloading.
+  ///
+  /// Downloading a model activates it, for the same reason importing one used to: a user who
+  /// waits out a 500 MB transfer wants to use that model, not to add it to a list. The file
+  /// is already at its final path in the store by the time this is called — the downloader
+  /// renames it into place atomically — so this only refreshes the list and switches.
+  Future<void> useDownloadedModel(String fileName) async {
     try {
-      final info = await _modelImporter.importModel(pickedPath);
       await refresh();
-      await switchToModel(info.fileName);
+      await switchToModel(fileName);
     } on Object catch (error) {
       _errorMessage = describeError(error);
       _notify();
@@ -99,7 +99,7 @@ class ModelManagerViewModel extends ChangeNotifier {
   ///
   /// **Caller contract:** whoever calls this must already have stopped any generation in
   /// flight. `ModelManagerView` satisfies it by awaiting `onWillSwitchModel` — which is
-  /// `ChatViewModel.startNewPersistentChat()` — first, on all three paths (import, switch,
+  /// `ChatViewModel.startNewPersistentChat()` — first, on all three paths (download, switch,
   /// reload). Saved chat history is untouched either way; only the native context is rebuilt.
   Future<void> switchToModel(String fileName) async {
     _isSwitchingModel = true;

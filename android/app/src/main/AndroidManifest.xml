@@ -17,7 +17,8 @@
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:usesCleartextTraffic="false"
-        android:largeHeap="true">
+        android:largeHeap="true"
+        android:enableOnBackInvokedCallback="true">
 
         <!--
             largeHeap: the model weights themselves are native allocations (llama.cpp
@@ -25,9 +26,10 @@
             ceiling directly. It matters for two other reasons, both real on a
             multi-gigabyte model:
 
-              1. It raises the managed-heap cap for the first-launch asset copy and for
-                 file import through the platform channels, which move the GGUF in chunks
-                 through Java byte arrays.
+              1. It raises the managed-heap cap for the first-launch asset copy, which moves
+                 the bundled GGUF across the platform channel in chunks through Java byte
+                 arrays. (Hand-importing a model is gone; a catalog download streams straight
+                 to disk from Dart and never touches the managed heap.)
               2. It marks the process as memory-hungry, which several vendor memory
                  policies and the ActivityManager's own trimming heuristics consult before
                  deciding which background process to kill. A 2-4 GB resident process
@@ -37,15 +39,8 @@
             "Memory-pressure termination" row of the README's debugging table.
         -->
 
-        <!--
-            Deliberately NOT set here: android:enableOnBackInvokedCallback. Predictive back
-            is opt-in below targetSdk 36, and turning it on changes who handles the back
-            gesture — the system, not Flutter's navigator — on Flutter versions whose
-            framework-side support is incomplete. This project's floor is Flutter 3.22, and
-            "leaving a non-empty temporary chat pops a confirmation" is exactly the kind of
-            behaviour that silently breaks when the system finishes the activity instead.
-            Turn it on deliberately, with a device test, not by default.
-        -->
+        <!-- Flutter 3.44 supports Android's predictive-back dispatcher. Enabling it removes
+             the platform warning and keeps back events routed through Flutter's navigator. -->
 
         <!--
             Deliberately NOT set here: android:extractNativeLibs. It is derived from

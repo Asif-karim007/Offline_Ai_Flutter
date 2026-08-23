@@ -20,14 +20,5 @@
   <string>????</string>
   <key>CFBundleVersion</key>
   <string>1.0</string>
-  <!--
-    Must agree with `platform :ios, '13.0'` in the Podfile, the post_install override of
-    IPHONEOS_DEPLOYMENT_TARGET, and `s.platform = :ios, '13.0'` in
-    packages/llama_bindings/ios/llama_bindings.podspec. A mismatch here surfaces as a
-    linker warning about "object file was built for newer iOS version than being linked",
-    which is easy to ignore right up until a Release build fails.
-  -->
-  <key>MinimumOSVersion</key>
-  <string>13.0</string>
 </dict>
 </plist>

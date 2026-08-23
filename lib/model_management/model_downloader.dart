@@ -91,9 +91,9 @@ class ModelDownloadException implements Exception {
 ///   `.gguf`, and `ModelStore.installedModels` — which filters on the extension — never
 ///   lists one.
 /// * **Backup exclusion.** Callers get the finished file's path and are expected to pass it
-///   through `ModelStore.excludeFromDeviceBackup`. In the Swift app downloads bypassed
-///   `ModelStore.copyModel` entirely and were the one class of installed model that was
-///   never excluded from iCloud backup.
+///   through `ModelStore.excludeFromDeviceBackup`. In the Swift app downloads bypassed the
+///   import path entirely and were the one class of installed model that was never excluded
+///   from iCloud backup.
 class ModelDownloader {
   ModelDownloader({http.Client? client}) : _injectedClient = client;
 

@@ -42,17 +42,19 @@ whose GGUF carries no usable chat template rather than guessing one**, so a base
 `LlamaError.missingChatTemplate` — that is deliberate.
 
 Download it from the model's own repository (Hugging Face, `Qwen/…-GGUF` or an equivalent
-quantizer's mirror), verify the file size and hash against the model card, and copy it in
-under exactly the name above.
+quantizer's mirror), verify the file size and hash against the model card, and copy it into
+this directory under exactly the name above — at build time, by hand. This is a packaging
+step for whoever builds the app, not something a user can do on a device.
 
 ## Not bundling anything
 
 Perfectly supported, and the right call for a build you intend to distribute over the air —
 a 500 MB app binary is a bad first impression. Leave this directory with only this README in
-it. On first launch, with no bundled asset and no previously installed model, the app shows
-its setup screen with **Import GGUF Model** (a document picker; on iOS you can also drop the
-file into the app's folder in Files first — see `UIFileSharingEnabled` in
-`ios/Runner/Info.plist`) and the in-app download option for the larger models.
+it. On first launch, with no bundled asset and no previously installed model, the app shows its
+setup screen listing every chat model in `lib/model_management/model_catalog.dart` with a
+Download button each. Downloading is now the **only** way a model reaches the device:
+importing a `.gguf` by hand was removed, along with the iOS `.gguf` file association and the
+Files-sharing keys that existed to support it.
 
 ## A note on packaging
 

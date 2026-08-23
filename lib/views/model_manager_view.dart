@@ -1,23 +1,22 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../agent/agent_request.dart';
 import '../domain/local_model_info.dart';
 import '../model_management/app_settings.dart';
-import '../model_management/model_importer.dart';
 import '../utilities/file_size_formatter.dart';
 import '../viewmodels/model_manager_view_model.dart';
+import 'model_catalog_view.dart';
 import 'theme.dart';
 
 /// Settings and the installed-model list, presented as a sheet.
 ///
-/// [onWillSwitchModel] runs — and is awaited — before every path that loads, reloads, imports
-/// or switches a model. It is `ChatViewModel.startNewPersistentChat()`, and it is what
-/// satisfies `ModelManagerViewModel.switchToModel`'s caller contract that generation has
+/// [onWillSwitchModel] runs — and is awaited — before every path that loads, reloads,
+/// downloads or switches a model. It is `ChatViewModel.startNewPersistentChat()`, and it is
+/// what satisfies `ModelManagerViewModel.switchToModel`'s caller contract that generation has
 /// already been stopped.
 class ModelManagerView extends StatefulWidget {
   const ModelManagerView({super.key, required this.onWillSwitchModel});
@@ -78,17 +77,41 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     });
   }
 
-  Future<void> _importModel(ModelManagerViewModel viewModel) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ModelImporter.allowedExtensions,
+  /// Pushes the built-in catalog as a full page over this sheet.
+  ///
+  /// Downloading is now the only way a model reaches the device — hand-importing a `.gguf`
+  /// is gone — so this is the screen's sole "add a model" affordance.
+  ///
+  /// [viewModel] is captured from the closure rather than read out of the pushed route's
+  /// context on purpose: `MainSplitView` provides `ModelManagerViewModel` *inside* the sheet,
+  /// which is below the navigator this route goes onto, so a `read` in there would throw.
+  ///
+  /// Nothing is refreshed when the route pops. `useDownloadedModel` already calls `refresh()`
+  /// and notifies, and `build` watches the view model, so the installed list is current the
+  /// moment a download finishes — before the user pops, not after.
+  Future<void> _openModelCatalog(ModelManagerViewModel viewModel) async {
+    final installedFileNames = <String>{
+      for (final model in viewModel.installedModels) model.fileName,
+    };
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        // `ModelCatalogView` deliberately carries no chrome of its own, so the route supplies
+        // the scaffold and the bar it needs.
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Download a Model')),
+          body: ModelCatalogView(
+            installedFileNames: installedFileNames,
+            onModelDownloaded: (fileName) async {
+              // `useDownloadedModel` switches to the model it just adopted, so it inherits
+              // `switchToModel`'s caller contract — the same one `_confirmSwitch` and
+              // `_reload` satisfy by awaiting this first.
+              await widget.onWillSwitchModel();
+              await viewModel.useDownloadedModel(fileName);
+            },
+          ),
+        ),
+      ),
     );
-    final path = result?.files.single.path;
-    if (path == null) {
-      return;
-    }
-    await widget.onWillSwitchModel();
-    await viewModel.importModel(path);
   }
 
   Future<void> _confirmSwitch(
@@ -131,7 +154,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
       builder: (context) => AlertDialog(
         title: const Text('Delete Model?'),
         content: const Text(
-          'This removes the model file from your device. You can re-import it later.',
+          'This removes the model file from your device. You can download it again later.',
         ),
         actions: [
           TextButton(
@@ -262,9 +285,9 @@ class _ModelManagerViewState extends State<ModelManagerView> {
                 onDelete: () => _confirmDelete(viewModel, model.fileName),
               ),
           _ActionRow(
-            icon: AppIcons.squareAndArrowDown,
-            label: 'Import Another GGUF',
-            onTap: () => unawaited(_importModel(viewModel)),
+            icon: AppIcons.arrowDownCircle,
+            label: 'Download a Model',
+            onTap: () => unawaited(_openModelCatalog(viewModel)),
           ),
         ],
       ),

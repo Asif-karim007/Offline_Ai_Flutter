@@ -7,7 +7,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.5.0'
+        classpath 'com.android.tools.build:gradle:8.11.1'
     }
 }
 
@@ -22,11 +22,11 @@ apply plugin: 'com.android.library'
 
 android {
     namespace 'net.salebee.llama_bindings'
-    compileSdk 35
+    compileSdk 36
 
     // NDK r27+ defaults to 16 KB-aligned shared libraries, which Android 15 requires.
     // An older NDK produces .so files that will refuse to load on 15+ devices.
-    ndkVersion '27.0.12077973'
+    ndkVersion '28.2.13676358'
 
     defaultConfig {
         minSdk 26

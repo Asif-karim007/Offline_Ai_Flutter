@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../model_management/model_catalog.dart';
 import '../model_management/model_downloader.dart';
 import '../model_management/model_store.dart';
 import 'error_text.dart';
@@ -67,10 +68,17 @@ final class DownloadFailed extends ModelDownloadState {
   int get hashCode => Object.hash('downloadFailed', message);
 }
 
-/// Downloads the one model the first-run screen offers.
+/// Downloads a catalog model.
 ///
-/// Created lazily, when the user presses the download button, and thrown away when they
+/// Created lazily, when the user presses a download button, and thrown away when they
 /// dismiss a download error — which is what makes a second press start clean.
+///
+/// **Was hardcoded to one URL.** Since importing a `.gguf` by hand is no longer possible,
+/// downloading is the only way a model reaches the device, and pinning that to a single
+/// file would have capped the app at exactly one model forever. Every entry in
+/// [ModelCatalog] already carries the repository, revision and file name needed to build a
+/// download URL — see [CatalogModel.downloadUrl] — so the view model now takes the model as
+/// an argument and the catalog decides what is on offer.
 class ModelDownloadViewModel extends ChangeNotifier {
   ModelDownloadViewModel({
     required ModelStore modelStore,
@@ -81,25 +89,20 @@ class ModelDownloadViewModel extends ChangeNotifier {
   final ModelStore _modelStore;
   final ModelDownloader Function() _downloaderFactory;
 
-  /// The recommended download, carried over verbatim from the Swift
-  /// `ModelDownloadViewModel`.
-  ///
-  /// **These deliberately do not come from `ModelCatalog`, and a reviewer should decide
-  /// whether that is right.** The catalog is new in the port and recommends
-  /// `Qwen3.5-0.8B-Q4_K_M` (533 MB); these constants, the body copy on the setup screen
-  /// ("…the recommended starter model is Qwen3-0.6B.") and the button's "639.4 MB" are the
-  /// iOS app's, and the porting rules make user-visible strings verbatim. Switching to
-  /// `ModelCatalog.bundledDefault` would change all three at once and is a product decision,
-  /// not a translation.
-  static final Uri recommendedModelUrl = Uri.parse(
-      'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf');
-
-  static const String recommendedModelFileName = 'Qwen3-0.6B-Q8_0.gguf';
-
-  /// The literal the Swift view formatted into the download button's label.
-  static const int recommendedModelSizeBytes = 639446688;
+  // No `recommendedModel` constant here. The hardcoded `Qwen3-0.6B-Q8_0` (639.4 MB) URL,
+  // file name and size are gone, and the recommendation is not this class's to hold:
+  // `CatalogModel.tier` already records it, so the catalog list badges
+  // `ModelTier.bundledDefault` directly and there is one source of truth rather than two.
+  // (The porting rule that keeps user-visible strings verbatim yields here — the screen
+  // that carried those strings no longer exists in the same form.)
 
   ModelDownloadState _state = ModelDownloadState.idle;
+
+  CatalogModel? _activeModel;
+
+  /// The model currently being fetched, or the last one attempted. Lets a list of models
+  /// show progress against the right row.
+  CatalogModel? get activeModel => _activeModel;
 
   ModelDownloadState get state => _state;
 
@@ -108,30 +111,41 @@ class ModelDownloadViewModel extends ChangeNotifier {
   ModelDownloader? _downloader;
   StreamSubscription<ModelDownloadEvent>? _subscription;
 
-  /// Starts the transfer. [onComplete] receives the finished file's path.
+  /// Starts the transfer of [model]. [onComplete] receives the finished file's path.
   ///
   /// Fire-and-forget by design: the caller is a button, and every outcome is reported through
   /// [state] rather than through the returned future.
   void startDownload({
+    required CatalogModel model,
     required Future<void> Function(String filePath) onComplete,
   }) {
     if (isDownloading) {
       return;
     }
-    _setState(const ModelDownloadState.downloading(bytesWritten: 0, totalBytes: 0));
-    unawaited(_run(onComplete));
+    _activeModel = model;
+    // Seeded with the catalog's published size rather than 0, so the progress bar is
+    // determinate from the first frame instead of jumping once the first chunk lands and
+    // the server's Content-Length arrives.
+    _setState(ModelDownloadState.downloading(
+      bytesWritten: 0,
+      totalBytes: model.downloadSizeBytes,
+    ));
+    unawaited(_run(model, onComplete));
   }
 
-  Future<void> _run(Future<void> Function(String filePath) onComplete) async {
+  Future<void> _run(
+    CatalogModel model,
+    Future<void> Function(String filePath) onComplete,
+  ) async {
     try {
       await _modelStore.ensureDirectoryExists();
-      final destination = _modelStore.pathForFileName(recommendedModelFileName);
+      final destination = _modelStore.pathForFileName(model.fileName);
       final downloader = _downloaderFactory();
       _downloader = downloader;
 
       final completer = Completer<void>();
       final subscription = downloader
-          .download(url: recommendedModelUrl, destinationPath: destination)
+          .download(url: model.downloadUrl, destinationPath: destination)
           .listen(
         (event) {
           switch (event) {

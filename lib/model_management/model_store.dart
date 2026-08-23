@@ -40,7 +40,8 @@ class ModelStoreException implements Exception {
 }
 
 /// Owns the on-disk `Models` directory where every installed GGUF file lives, however it
-/// arrived — bundled asset, Files import, or download.
+/// arrived — bundled asset or download. (Hand-importing a `.gguf` was removed; downloading
+/// from the catalog is the only route a user has.)
 class ModelStore {
   const ModelStore(this.modelsDirectory);
 
@@ -122,38 +123,6 @@ class ModelStore {
     return models;
   }
 
-  /// Copies a file into the store, replacing any existing model of the same name.
-  ///
-  /// Replace rather than uniquify: the file name is the model's identity everywhere else in
-  /// the app, and two `Qwen3.5-2B-Q4_K_M.gguf` files that differ only by a `(1)` suffix would
-  /// be two multi-gigabyte copies of the same weights.
-  Future<File> copyModel({required File source, required String fileName}) async {
-    _requireSafeFileName(fileName);
-    await ensureDirectoryExists();
-
-    final destination = File(p.join(modelsDirectory.path, fileName));
-    if (await destination.exists()) {
-      await destination.delete();
-    }
-
-    try {
-      await source.copy(destination.path);
-    } on FileSystemException catch (error) {
-      // ENOSPC. `dart:io` reports the raw errno rather than a typed "out of space" error, and
-      // 28 is ENOSPC on Linux, Android and Darwin alike.
-      if (error.osError?.errorCode == 28) {
-        throw const ModelStoreException(ModelStoreErrorKind.insufficientStorage);
-      }
-      throw ModelStoreException(
-        ModelStoreErrorKind.copyFailed,
-        detail: error.message,
-      );
-    }
-
-    await excludeFromDeviceBackup(destination);
-    return destination;
-  }
-
   Future<void> deleteModel(String fileName) async {
     final target = File(pathForFileName(fileName));
     if (!await target.exists()) {
@@ -180,7 +149,7 @@ class ModelStore {
   /// **Before shipping on iOS, add the platform channel.** This method is the single seam it
   /// plugs into: every path that puts a file into the models directory — copy, import,
   /// download, bundled-asset bootstrap — calls it, which also closes the Swift app's own gap
-  /// where downloaded models bypassed `copyModel` and were never excluded at all.
+  /// where downloaded models bypassed the import path and were never excluded at all.
   Future<void> excludeFromDeviceBackup(File file) async {
     // Deliberately a no-op rather than a throw: the file is already correctly placed, and
     // failing an import over a backup attribute would be worse than the backup.

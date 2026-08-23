@@ -1,264 +1,147 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../model_management/model_importer.dart';
-import '../utilities/file_size_formatter.dart';
 import '../viewmodels/app_view_model.dart';
 import '../viewmodels/error_text.dart';
-import '../viewmodels/model_download_view_model.dart';
 import 'error_banner.dart';
+import 'model_catalog_view.dart';
 import 'theme.dart';
 
 /// First run, and every later run where no model is installed.
 ///
-/// Owns a lazily-created [ModelDownloadViewModel]: it does not exist until the user presses
-/// the download button, and it is thrown away when they dismiss a download error, which is
-/// what makes the next press start from a clean state.
+/// **The import half is gone.** This screen used to offer two routes — a file picker feeding
+/// an importer, and one hardcoded "download the recommended model" button. Hand-importing a
+/// `.gguf` has been removed outright, so downloading is now the only way a model reaches the
+/// device, and the one-model button would have capped the app at exactly one choice. Both are replaced by an
+/// embedded [ModelCatalogView], which is the same list the settings sheet can show.
+///
+/// What is left here is the framing: a [Scaffold], a title and one line of explanation
+/// passed down as the catalog's `header`, and the error banner for the load that follows a
+/// finished download. **Do not wrap the catalog in a scroll view** — its body is a
+/// `ListView` and it scrolls itself; giving it unbounded height throws at runtime.
+/// Download failures are the catalog's own business and it shows them itself.
 class ModelSetupView extends StatefulWidget {
-  const ModelSetupView({super.key, required this.onImport});
-
-  /// Receives the picked file's path. A path rather than a `URL`: `file_picker` returns
-  /// paths, and `ModelImporter` takes one.
-  final void Function(String pickedPath) onImport;
+  const ModelSetupView({super.key});
 
   @override
   State<ModelSetupView> createState() => _ModelSetupViewState();
 }
 
 class _ModelSetupViewState extends State<ModelSetupView> {
-  ModelDownloadViewModel? _downloadViewModel;
-  String? _importError;
+  /// Captured once. `onModelDownloaded` fires from the download stream, and the load it
+  /// starts moves `AppViewModel` off `needsModel`, which unmounts this screen — reading the
+  /// provider out of a deactivated element at that point would throw.
+  late final AppViewModel _appViewModel;
+
+  String? _errorMessage;
 
   @override
-  void dispose() {
-    _downloadViewModel?.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _appViewModel = context.read<AppViewModel>();
   }
 
-  Future<void> _pickModel() async {
+  /// The file is already at its final path in the model store; this only loads it.
+  ///
+  /// `useDownloadedModel` reports its own failures through `AppLoadingState.failed`, so the
+  /// banner here is for anything that escapes it — the guard exists so a throw cannot leave
+  /// the user on a screen that silently did nothing after a multi-gigabyte download.
+  Future<void> _handleDownloaded(String fileName) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ModelImporter.allowedExtensions,
-      );
-      final path = result?.files.single.path;
-      if (path == null) {
-        return;
-      }
-      if (!mounted) {
-        return;
-      }
-      setState(() => _importError = null);
-      widget.onImport(path);
+      await _appViewModel.useDownloadedModel(fileName);
     } on Object catch (error) {
       if (!mounted) {
         return;
       }
-      setState(() => _importError = describeError(error));
+      setState(() => _errorMessage = describeError(error));
     }
-  }
-
-  void _startDownload() {
-    final appViewModel = context.read<AppViewModel>();
-    // The field can already hold a view model — after a cancel, and in the window between
-    // a finished download and `useDownloadedModel` returning. Overwriting it without
-    // disposing strands a ChangeNotifier that still owns a live download subscription.
-    final previous = _downloadViewModel;
-    final viewModel = ModelDownloadViewModel(modelStore: appViewModel.modelStore);
-    setState(() => _downloadViewModel = viewModel);
-    previous?.dispose();
-    viewModel.startDownload(
-      onComplete: (filePath) => appViewModel.useDownloadedModel(
-        ModelDownloadViewModel.fileNameFromPath(filePath),
-      ),
-    );
-  }
-
-  void _dismissDownloadError() {
-    final viewModel = _downloadViewModel;
-    setState(() => _downloadViewModel = null);
-    viewModel?.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final downloadViewModel = _downloadViewModel;
-
+    // No `backgroundColor` here: `scaffoldBackgroundColor` is already `AppColors.page`.
     return Scaffold(
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
-                child: downloadViewModel == null
-                    ? _buildBody(context, null)
-                    : ListenableBuilder(
-                        listenable: downloadViewModel,
-                        builder: (context, _) => _buildBody(context, downloadViewModel),
-                      ),
-              ),
-            ),
+        // No scroll view of its own: `ModelCatalogView` is a `ListView`, and all it needs
+        // from a host is the bounded height a `Scaffold` body already gives it.
+        child: ModelCatalogView(
+          // Nothing can be installed: this screen only exists because discovery found no
+          // model at all.
+          installedFileNames: const <String>{},
+          onModelDownloaded: _handleDownloaded,
+          header: _SetupHeader(
+            errorMessage: _errorMessage,
+            onDismissError: () => setState(() => _errorMessage = null),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBody(BuildContext context, ModelDownloadViewModel? downloadViewModel) {
-    final downloadState = downloadViewModel?.state;
-    final importError = _importError;
-
-    return Column(
-      children: [
-        const Spacer(),
-        ExcludeSemantics(
-          child: Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.thickMaterial(context),
-              borderRadius: const BorderRadius.all(Radius.circular(20)),
-            ),
-            child: Icon(
-              AppIcons.shippingBox,
-              size: 32,
-              color: AppColors.secondaryLabel(context),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text('No Model Installed', style: AppText.title2(context)),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(
-            'Get a GGUF language model to start chatting offline. The recommended starter '
-            'model is Qwen3-0.6B.',
-            textAlign: TextAlign.center,
-            style: AppText.subheadline(context).copyWith(
-              color: AppColors.secondaryLabel(context),
-            ),
-          ),
-        ),
-        if (importError != null) ...[
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: ErrorBanner(
-              message: importError,
-              onDismiss: () => setState(() => _importError = null),
-            ),
-          ),
-        ],
-        if (downloadState is DownloadFailed) ...[
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: ErrorBanner(
-              message: downloadState.message,
-              onDismiss: _dismissDownloadError,
-            ),
-          ),
-        ],
-        const SizedBox(height: 32),
-        // Both buttons take their capsule shape and 48pt minimum height straight from
-        // `filledButtonTheme` / `outlinedButtonTheme` — no local shape or height override.
-        if (downloadState is Downloading)
-          _DownloadProgress(
-            state: downloadState,
-            onCancel: downloadViewModel!.cancelDownload,
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _startDownload,
-                icon: const Icon(AppIcons.arrowDownCircle, size: 20),
-                label: Text(
-                  'Download Recommended Model '
-                  '(${FileSizeFormatter.string(bytes: ModelDownloadViewModel.recommendedModelSizeBytes)})',
-                ),
-              ),
-            ),
-          ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: downloadViewModel?.isDownloading == true ? null : _pickModel,
-              icon: const Icon(AppIcons.squareAndArrowDown, size: 20),
-              label: const Text('Import GGUF Model'),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(
-            'Downloading requires an internet connection once. After that, chatting works '
-            'fully offline.',
-            textAlign: TextAlign.center,
-            style: AppText.caption(context).copyWith(
-              color: AppColors.tertiaryLabel(context),
-            ),
-          ),
-        ),
-        const Spacer(),
-        const Spacer(),
-      ],
     );
   }
 }
 
-class _DownloadProgress extends StatelessWidget {
-  const _DownloadProgress({required this.state, required this.onCancel});
+class _SetupHeader extends StatelessWidget {
+  const _SetupHeader({required this.errorMessage, required this.onDismissError});
 
-  final Downloading state;
-  final VoidCallback onCancel;
+  final String? errorMessage;
+  final VoidCallback onDismissError;
 
   @override
   Widget build(BuildContext context) {
-    final label = state.isDeterminate
-        ? '${FileSizeFormatter.string(bytes: state.bytesWritten)} of '
-            '${FileSizeFormatter.string(bytes: state.totalBytes)}'
-        : FileSizeFormatter.string(bytes: state.bytesWritten);
+    final message = errorMessage;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: [
-          // A server that sent no length gets an indeterminate bar rather than a bar frozen
-          // at zero. Colours come from `progressIndicatorTheme`; the clip is what rounds the
-          // ends, since `LinearProgressIndicator` draws square ones.
-          ClipRRect(
-            borderRadius: const BorderRadius.all(Radius.circular(3)),
-            child: LinearProgressIndicator(value: state.fraction, minHeight: 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 32),
+        Padding(
+          // 28, not 16: prose sits under the cards' own inner inset rather than at the
+          // screen edge, which is the same measure the settings sheet's headers use.
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // `Align` rather than a bare `Container`: the surrounding column stretches its
+              // children, which would override the badge's own 56pt width.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ExcludeSemantics(
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.thickMaterial(context),
+                      borderRadius: const BorderRadius.all(Radius.circular(16)),
+                    ),
+                    child: Icon(
+                      AppIcons.shippingBox,
+                      size: 26,
+                      color: AppColors.secondaryLabel(context),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Choose a Model', style: AppText.title(context)),
+              const SizedBox(height: 8),
+              Text(
+                'Download one to start chatting — it is stored on this device and runs '
+                'entirely on it.',
+                style: AppText.subheadline(context).copyWith(
+                  color: AppColors.secondaryLabel(context),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: AppText.caption(context).copyWith(
-              color: AppColors.secondaryLabel(context),
-            ),
-          ),
-          const SizedBox(height: 4),
-          TextButton(
-            onPressed: onCancel,
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              textStyle: AppText.footnote(context),
-            ),
-            child: const Text('Cancel Download'),
+        ),
+        if (message != null) ...[
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ErrorBanner(message: message, onDismiss: onDismissError),
           ),
         ],
-      ),
+      ],
     );
   }
 }

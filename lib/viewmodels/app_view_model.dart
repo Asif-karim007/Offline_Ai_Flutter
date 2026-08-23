@@ -10,7 +10,6 @@ import '../app/app_coordinator.dart';
 import '../llm/chat_engine.dart';
 import '../model_management/app_settings.dart';
 import '../model_management/model_bootstrap_service.dart';
-import '../model_management/model_importer.dart';
 import '../model_management/model_store.dart';
 import 'error_text.dart';
 
@@ -29,9 +28,7 @@ class AppViewModel extends ChangeNotifier {
     required this.settings,
     required this.modelStore,
     required ModelBootstrapService bootstrapService,
-    required ModelImporter modelImporter,
-  })  : _bootstrapService = bootstrapService,
-        _modelImporter = modelImporter;
+  }) : _bootstrapService = bootstrapService;
 
   /// Builds the half of the graph `AppCoordinator` deliberately leaves out.
   ///
@@ -56,7 +53,6 @@ class AppViewModel extends ChangeNotifier {
       settings: coordinator.settings,
       modelStore: coordinator.modelStore,
       bootstrapService: coordinator.bootstrapService,
-      modelImporter: coordinator.modelImporter,
     );
   }
 
@@ -67,8 +63,6 @@ class AppViewModel extends ChangeNotifier {
   final ModelStore modelStore;
 
   final ModelBootstrapService _bootstrapService;
-  final ModelImporter _modelImporter;
-
   AppLoadingState _loadingState = AppLoadingState.checkingForModel;
 
   AppLoadingState get loadingState => _loadingState;
@@ -93,7 +87,7 @@ class AppViewModel extends ChangeNotifier {
       );
 
       switch (resolution) {
-        case NeedsImport():
+        case NeedsDownload():
           _setLoadingState(AppLoadingState.needsModel);
         case ResolvedModel(:final fileName, :final bundledModelWasCopied):
           if (bundledModelWasCopied) {
@@ -101,20 +95,6 @@ class AppViewModel extends ChangeNotifier {
           }
           await _loadModel(fileName);
       }
-    } on Object catch (error) {
-      _setLoadingState(AppLoadingState.failed(describeError(error)));
-    }
-  }
-
-  /// Imports a user-picked `.gguf` and loads it.
-  ///
-  /// [pickedPath] is a filesystem path, not a `URL`: `file_picker` returns paths, and
-  /// `ModelImporter.importModel` takes one.
-  Future<void> importModel(String pickedPath) async {
-    _setLoadingState(AppLoadingState.validatingModel);
-    try {
-      final info = await _modelImporter.importModel(pickedPath);
-      await _loadModel(info.fileName);
     } on Object catch (error) {
       _setLoadingState(AppLoadingState.failed(describeError(error)));
     }

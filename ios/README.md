@@ -10,7 +10,7 @@
 > if you need to regenerate the project from scratch.
 
 Everything in this directory is hand-written and specific to this app: the deployment
-target, the Files-sharing keys that let a user sideload a GGUF, the CocoaPods `post_install`
+target, the annotated Info.plist and the decisions recorded in it, the CocoaPods `post_install`
 that keeps the FFI symbols alive in Release. One thing used to be deliberately **not**
 committed:
 
@@ -80,7 +80,7 @@ cp -R /tmp/ios-authored/. ios/
 | Path | What you lose if you keep the generated one |
 |---|---|
 | `ios/Podfile` | The `post_install` block. Release builds then throw `ArgumentError: Failed to lookup symbol 'lc_*'` at the first inference. This is the one that costs you an afternoon. |
-| `ios/Runner/Info.plist` | Display name, `UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`, the `.gguf` document type, and the documented decisions about background modes and ATS. |
+| `ios/Runner/Info.plist` | Display name, and the documented decisions about background modes, ATS, and the deliberately absent file-sharing and `.gguf` document-type keys (removed with hand-importing a model — a model now only arrives through the in-app catalog download). |
 | `ios/Runner/AppDelegate.swift` | Only comments differ, but keep them. |
 | `ios/Runner/Runner-Bridging-Header.h` | Same. |
 | `ios/Runner/Base.lproj/*.storyboard` | The launch screen's `systemBackgroundColor` (the stock one is hardcoded white and flashes in dark mode). |

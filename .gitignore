@@ -89,6 +89,7 @@ coverage/
 
 # scripts/build_llama_{ios,android}.sh clone llama.cpp and build it here. Tens of GB.
 .build/
+**/.cxx/
 
 # The iOS xcframework, produced by scripts/build_llama_ios.sh (or copied from the Swift
 # app). Vendored by the podspec, never committed — it is a multi-hundred-megabyte binary.
