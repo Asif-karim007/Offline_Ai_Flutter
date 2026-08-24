@@ -28,18 +28,30 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # Static linkage, not the default dynamic frameworks. This is load-bearing:
-  # llama_bindings is an ffiPlugin whose podspec compiles llama_shim.cpp as source, and
-  # with static linkage those objects land directly in the Runner executable. That is
-  # exactly what packages/llama_bindings/lib/src/llama_library.dart assumes when it calls
-  # `DynamicLibrary.process()` on iOS instead of opening a library by name.
+  # Plain dynamic frameworks — Flutter's default. An earlier version of this file forced
+  # `:linkage => :static` specifically so llama_shim.cpp's object code would land directly in
+  # the Runner executable, for `DynamicLibrary.process()` to find on the Dart side. That
+  # fought CocoaPods and Xcode the entire way: a static linker only keeps object code
+  # something references, and nothing at compile time ever calls an `lc_*` function — Dart
+  # only reaches them through `dlsym` at runtime. Every combination of `-force_load`,
+  # `-Wl,-u,symbol`, `-all_load` and dead-code-stripping settings tried here either dropped
+  # the symbols, stripped them back out, or duplicated CocoaPods' own dummy anchor object.
   #
-  # It also means the *app* target's strip settings — not the pod's — decide whether the
-  # `lc_*` symbols survive a Release build. See post_install below.
-  use_frameworks! :linkage => :static
+  # `llama_shim` is a genuine dynamic framework now (see llama_shim.podspec), embedded in the
+  # app bundle like any other framework, and `llama_library.dart` opens it by path
+  # (`DynamicLibrary.open('@rpath/llama_shim.framework/llama_shim')`) instead of scanning the
+  # main executable. A dynamic library's exported symbols are never subject to the static
+  # linker's reference-counting in the first place, which is what actually fixes this.
+  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # Not a Flutter plugin — `flutter_install_all_ios_pods` above only looks for a podspec
+  # named after each pubspec.yaml plugin, so llama_shim.podspec (living right next to
+  # llama_bindings.podspec, inside the same plugin's ios/ directory) needs to be pulled in
+  # explicitly. See llama_bindings.podspec for why the shim is a second pod at all.
+  pod 'llama_shim', :path => File.join('.symlinks', 'plugins', 'llama_bindings', 'ios')
 
   target 'RunnerTests' do
     inherit! :search_paths
@@ -47,71 +59,19 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # ---------------------------------------------------------------------------------------
-  # Why STRIP_STYLE and DEAD_CODE_STRIPPING are forced here
-  # ---------------------------------------------------------------------------------------
-  #
-  # The `lc_*` shim functions have exactly one caller: `DynamicLibrary.lookupFunction` at
-  # runtime, from Dart. There is no compile-time reference to any of them anywhere in the
-  # Swift or C++ sources. To the Release linker that makes every one of them dead code.
-  #
-  # Two separate mechanisms then remove them:
-  #
-  #   * DEAD_CODE_STRIPPING=YES lets ld drop unreferenced symbols at link time.
-  #   * STRIP_STYLE=all (the Release default for an app target, via `strip -u -r`) removes
-  #     everything that is not an undefined or indirect symbol from the final binary — non-
-  #     global *and global* symbols alike.
-  #
-  # The failure is silent at build time and total at runtime: every single FFI lookup
-  # throws
-  #
-  #     ArgumentError: Failed to lookup symbol 'lc_backend_init': dlsym(RTLD_DEFAULT,
-  #     lc_backend_init): symbol not found
-  #
-  # which reads like a packaging problem and is not one. Debug builds are unaffected, so
-  # this only ever shows up in a TestFlight build. `STRIP_STYLE = non-global` keeps the
-  # global symbol table (which is all `dlsym` needs) while still stripping local symbols and
-  # debug entries, so the binary-size cost is small.
-  #
-  # The podspec already sets both for the pod target; they are repeated here because the
-  # pod's settings do not reach the Runner target that the shim's objects link into, and
-  # because `flutter_additional_ios_build_settings` resets some of them.
+  # `llama_shim` is a dynamic framework now, so its exported symbols are never subject to
+  # dead-code-stripping or archive-member selection in the first place — the elaborate
+  # STRIP_STYLE/DEAD_CODE_STRIPPING forcing this block used to do (for a static-linkage
+  # design that fought Xcode's linker the whole way) is gone. What is left is routine.
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
 
-      config.build_settings['STRIP_STYLE'] = 'non-global'
-      config.build_settings['DEAD_CODE_STRIPPING'] = 'NO'
-
       # 32-bit simulator slices have not existed since Xcode 12, but some transitive pods
       # still advertise i386 and break the simulator build if it is not excluded.
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
     end
-  end
-
-  # The pods project is only half of it. llama_shim.o is linked into the *app* binary, and
-  # it is Xcode's strip phase on the Runner target that deletes the symbols. CocoaPods will
-  # not touch the user project unless we do it here explicitly.
-  installer.aggregate_targets.each do |aggregate_target|
-    user_project = aggregate_target.user_project
-    next if user_project.nil?
-
-    user_project.native_targets.each do |native_target|
-      native_target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-        config.build_settings['STRIP_STYLE'] = 'non-global'
-        config.build_settings['DEAD_CODE_STRIPPING'] = 'NO'
-
-        # Belt and braces: even with STRIP_STYLE=non-global, an explicit
-        # "strip installed product" pass can be configured to run `strip -x`. Keeping
-        # STRIP_INSTALLED_PRODUCT on is fine, but the swift/objc symbol strip must stay off
-        # for the same dlsym reason.
-        config.build_settings['STRIP_SWIFT_SYMBOLS'] = 'NO'
-      end
-    end
-
-    user_project.save
   end
 end

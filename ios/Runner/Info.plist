@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -24,50 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-
-	<!--
-		Deliberately absent: the model-sideloading keys. Four keys used to live here and all
-		four existed for one feature — hand-importing a GGUF — which no longer exists. The
-		catalog download in the model manager is now the only way a model reaches the device,
-		so each of them was a promise the app can no longer keep:
-
-		  CFBundleDocumentTypes / UTExportedTypeDeclarations (net.salebee.gguf)
-		      Declared the app as the owner-rank handler for .gguf, which is what made Files,
-		      Mail and AirDrop offer "Open in Offline AI Chat". There is nothing left to open
-		      into: the app has no `application(_:open:options:)` handler (see
-		      AppDelegate.swift) and no importer behind it, so accepting the open would dead-end.
-
-		  UIFileSharingEnabled
-		      Exposed Documents/ in Files and over iTunes/Finder sharing, purely so a user
-		      could drop a multi-gigabyte GGUF in and then pick it. It does not expose
-		      downloaded models: those live in Library/Application Support/Models, which file
-		      sharing never shows. Nothing else of this app's writes to Documents/ either —
-		      SqfliteConversationRepository deliberately puts the chat database in Application
-		      Support rather than sqflite's default Documents path *because* this key would
-		      expose it. Leaving it on would publish an empty, user-writable folder and re-arm
-		      that trap for the next thing that reaches for a default path.
-
-		  LSSupportsOpeningDocumentsInPlace
-		      Only meaningful next to a document type: it says the app can be handed a URL to a
-		      file that stays where the user put it. With the .gguf declaration gone nothing
-		      hands this app a URL at all.
-
-		Attaching documents to a chat is unaffected and needs none of these. It runs through
-		file_picker -> UIDocumentPickerViewController, which grants access per pick with no
-		Info.plist declaration and no permission prompt, and copies the file into the app's own
-		sandbox before returning a path — so there is no security-scoped resource to open and
-		nothing here to declare. See lib/agent/documents/local_document_manager.dart.
-	-->
-
-	<!--
-		Portrait plus both landscapes on iPhone; everything on iPad. Generation is not
-		interrupted by a rotation — the engine runs on its own isolate and the UI rebuild
-		is independent of it.
-	-->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -81,42 +45,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-	<!--
-		UIBackgroundModes is deliberately absent, and this is a design decision rather than
-		an oversight.
-
-		Inference is foreground-only. A background mode would be needed to keep generating
-		after the user leaves the app, and none of the available modes honestly describe
-		what this app does: there is no audio, no location, no VoIP, and `processing` /
-		`fetch` are for short, system-scheduled, deferrable work — not for a 2 GB resident
-		process burning the CPU for a minute. Requesting one to keep a token stream alive
-		is exactly the abuse App Review rejects, and on a memory-pressured device the app
-		would be the first thing killed anyway.
-
-		The consequence, which the UI has to handle rather than hide: backgrounding the app
-		mid-generation suspends the isolate, and iOS may terminate the process while
-		suspended. The engine's cancellation flag makes that a clean stop rather than a
-		corrupt KV cache.
-	-->
-
-	<!--
-		NSAppTransportSecurity is deliberately absent too. Absent means ATS defaults:
-		TLS 1.2+, no arbitrary loads, no cleartext HTTP. Web search and model download are
-		the only network callers and both are HTTPS. Adding even an empty dict here starts
-		a conversation with App Review that this app has no reason to have — this mirrors
-		android:usesCleartextTraffic="false" on the other platform.
-
-		No usage-description strings are present either (no NSCameraUsageDescription,
-		NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription, …): document import
-		goes through UIDocumentPickerViewController, which grants access per-file without
-		a permission prompt, and nothing else touches a protected resource.
-	-->
-
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 </dict>

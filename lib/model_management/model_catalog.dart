@@ -37,6 +37,9 @@ enum ModelTier {
 enum PromptFormat {
   chatml('ChatML'),
 
+  /// `<start_of_turn>role\n...<end_of_turn>` — Gemma's own template, not ChatML.
+  gemma('Gemma'),
+
   /// Embedding models have no chat template.
   none('none');
 
@@ -181,6 +184,42 @@ abstract final class ModelCatalog {
     note: 'Weights alone are 2.74 GB before KV cache.',
   );
 
+  /// Google's Gemma 3n, the "effective 2B" member of the pair. Ships as a ~5B-parameter
+  /// multimodal checkpoint whose per-layer embeddings let it run at a roughly 2B memory
+  /// footprint on Google's own MediaPipe/LiteRT runtime; this app's llama.cpp engine has no
+  /// image/audio input path, so it is loaded and used as a text-only chat model.
+  static const CatalogModel gemma3nE2B = CatalogModel(
+    id: 'gemma-3n-e2b-it-q4_k_m',
+    displayName: 'Gemma-3n-E2B-it-Q4_K_M',
+    repository: 'unsloth/gemma-3n-E2B-it-GGUF',
+    fileName: 'gemma-3n-E2B-it-Q4_K_M.gguf',
+    downloadSizeBytes: 3030 * _megabyte,
+    license: 'Gemma',
+    promptFormat: PromptFormat.gemma,
+    contextLength: 32768,
+    tier: ModelTier.recommended,
+    // Not benchmarked on this app. Sized from the weight footprint plus headroom for the KV
+    // cache, since generic llama.cpp inference does not get Google's own PLE memory savings.
+    minimumDeviceMemoryBytes: 6 * _gibibyte,
+    note: 'Text-only use of a multimodal model. Switch to the E4B entry for higher quality.',
+  );
+
+  /// The step up from [gemma3nE2B]: an "effective 4B" checkpoint from the same Gemma 3n
+  /// family, same caveats about text-only use in this app.
+  static const CatalogModel gemma3nE4B = CatalogModel(
+    id: 'gemma-3n-e4b-it-q4_k_m',
+    displayName: 'Gemma-3n-E4B-it-Q4_K_M',
+    repository: 'unsloth/gemma-3n-E4B-it-GGUF',
+    fileName: 'gemma-3n-E4B-it-Q4_K_M.gguf',
+    downloadSizeBytes: 4540 * _megabyte,
+    license: 'Gemma',
+    promptFormat: PromptFormat.gemma,
+    contextLength: 32768,
+    tier: ModelTier.max,
+    minimumDeviceMemoryBytes: 8 * _gibibyte,
+    note: 'Text-only use of a multimodal model. Weights alone are 4.54 GB before KV cache.',
+  );
+
   /// The retrieval-side embedding model.
   ///
   /// The file name is the conventional `<model>-<quant>.gguf` form for this repository.
@@ -207,6 +246,8 @@ abstract final class ModelCatalog {
     qwen35Point8B,
     qwen352B,
     qwen354B,
+    gemma3nE2B,
+    gemma3nE4B,
     multilingualE5Small,
   ];
 
