@@ -11,6 +11,7 @@ import 'package:offline_ai_chat/agent/web/api_key_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/generation_configuration.dart';
+import '../l10n/app_strings.dart';
 
 /// User-configurable generation settings and the selected model file name.
 ///
@@ -43,7 +44,9 @@ class AppSettings extends ChangeNotifier {
             _preferences.getBool(_Keys.bundledModelCopied) ?? false,
         _webSearchMode =
             _webSearchModeFromStored(_preferences.getString(_Keys.webSearchMode)),
-        _hasBraveApiKey = _preferences.getBool(_Keys.hasBraveApiKey) ?? false;
+        _hasBraveApiKey = _preferences.getBool(_Keys.hasBraveApiKey) ?? false,
+        _appLanguage = AppLanguage.fromWireValue(_preferences.getString(_Keys.appLanguage)),
+        _activeCurriculumPackId = _preferences.getString(_Keys.activeCurriculumPackId);
 
   /// Reads every value once, up front.
   ///
@@ -107,6 +110,8 @@ class AppSettings extends ChangeNotifier {
   bool _hasBundledModelBeenCopied;
   WebSearchMode _webSearchMode;
   bool _hasBraveApiKey;
+  AppLanguage _appLanguage;
+  String? _activeCurriculumPackId;
 
   String? get selectedModelFileName => _selectedModelFileName;
 
@@ -203,6 +208,36 @@ class AppSettings extends ChangeNotifier {
     }
     _webSearchMode = value;
     _preferences.setString(_Keys.webSearchMode, value.wireValue).ignore();
+    notifyListeners();
+  }
+
+  /// The interface language. `system` (the default) follows the device, so a phone set to
+  /// Bangla opens the app in Bangla with nothing to configure.
+  AppLanguage get appLanguage => _appLanguage;
+
+  set appLanguage(AppLanguage value) {
+    if (_appLanguage == value) {
+      return;
+    }
+    _appLanguage = value;
+    _preferences.setString(_Keys.appLanguage, value.wireValue).ignore();
+    notifyListeners();
+  }
+
+  /// The curriculum pack textbook answers are drawn from, e.g. `general_class-9-10_bn`, or
+  /// null when the student has not chosen one.
+  String? get activeCurriculumPackId => _activeCurriculumPackId;
+
+  set activeCurriculumPackId(String? value) {
+    if (_activeCurriculumPackId == value) {
+      return;
+    }
+    _activeCurriculumPackId = value;
+    if (value == null) {
+      _preferences.remove(_Keys.activeCurriculumPackId).ignore();
+    } else {
+      _preferences.setString(_Keys.activeCurriculumPackId, value).ignore();
+    }
     notifyListeners();
   }
 
@@ -328,4 +363,8 @@ abstract final class _Keys {
   static const String bundledModelCopied = 'settings.bundledModelCopied';
   static const String webSearchMode = 'settings.webSearchMode';
   static const String hasBraveApiKey = 'settings.hasBraveAPIKey';
+
+  /// New in this app — the Swift original was English-only — so there is no iOS key to match.
+  static const String appLanguage = 'settings.appLanguage';
+  static const String activeCurriculumPackId = 'settings.activeCurriculumPackId';
 }

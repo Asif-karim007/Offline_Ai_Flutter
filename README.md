@@ -52,6 +52,7 @@ lib/
   persistence/       sqflite schema + ConversationRepository
   model_management/  Model file storage, catalog, download, first-launch bootstrap, settings
   viewmodels/        ChangeNotifier view models, one per Swift @Observable original
+  l10n/              Every UI string, in English and Bangla (hand-written, no code generation)
   views/             Flutter widgets
   utilities/         Small stateless helpers
 assets/models/       Optional bundled GGUF model (not committed — see section 6)

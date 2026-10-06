@@ -1,3 +1,5 @@
+import '../l10n/app_strings.dart';
+
 /// Derives a conversation title from the first user message, with no extra model call.
 ///
 /// Ported step for step from `Utilities/ConversationTitleGenerator.swift`, including the
@@ -48,7 +50,9 @@ abstract final class ConversationTitleGenerator {
     final flattened = _trimWhitespace(_replaceNewlinesWithSpaces(text));
 
     if (flattened.isEmpty) {
-      return 'New Chat';
+      // Stored as the conversation's title, so it is in the language the app was in when the
+      // conversation was created and does not follow a later language switch.
+      return AppStrings.current.newChat;
     }
 
     // Swift counts and slices by extended grapheme cluster; this counts by Unicode code

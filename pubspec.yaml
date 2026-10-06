@@ -10,6 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Bangla for the framework's own text — dialog semantics, text-field menus, date pickers.
+  # The app's strings are hand-written in lib/l10n/, with no code generation.
+  flutter_localizations:
+    sdk: flutter
 
   # --- inference -----------------------------------------------------------------------
   # The local FFI plugin. Everything that knows llama.cpp exists lives behind it.
@@ -43,13 +47,18 @@ dependencies:
   http: ^1.2.2
 
   # --- misc ----------------------------------------------------------------------------
-  intl: ^0.19.0
+  intl: ^0.20.2
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # On-device evaluation runs (integration_test/), with the real engine and model.
+  integration_test:
+    sdk: flutter
   flutter_lints: ^4.0.0
+  # Runs the curriculum index's real SQLite/FTS4 queries on the host in tests.
+  sqflite_common_ffi: ^2.3.4
 
 flutter:
   uses-material-design: true
@@ -58,3 +67,11 @@ flutter:
     # A bundled GGUF goes here and is copied into application support on first launch.
     # The repository does not ship one — see README section "Model resource setup".
     - assets/models/
+
+# Only `sqflite_common_ffi` (a dev dependency, for tests) pulls in `package:sqlite3`. Its
+# bundled SQLite is built without FTS4, which the curriculum index needs; the system SQLite
+# has it, exactly as Android's and iOS's — which sqflite uses on device — do.
+hooks:
+  user_defines:
+    sqlite3:
+      source: system

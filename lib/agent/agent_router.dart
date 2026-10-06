@@ -1,3 +1,4 @@
+import '../utilities/bangla_text.dart';
 import 'agent_decision.dart';
 import 'agent_request.dart';
 
@@ -71,6 +72,10 @@ class AgentRouter {
     'search web', 'search the web', 'search online', 'look online',
     'look this up online', 'look it up online', 'check online', 'google it',
     'search internet', 'search the internet', 'look up online',
+    // Bangla. Verb stems ("খুঁজ") so every conjugation — খুঁজে, খুঁজো, খুঁজুন — matches. The
+    // negated forms ("খুঁজো না") are in [explicitNoWebPhrases], which is checked first.
+    'ওয়েবে খুঁজ', 'ইন্টারনেটে খুঁজ', 'অনলাইনে খুঁজ', 'গুগলে খুঁজ', 'নেটে খুঁজ',
+    'গুগল করে', 'ইন্টারনেট থেকে খুঁজ', 'অনলাইনে দেখে',
   ];
 
   /// Straight ASCII apostrophes, not typographic ones — a user typing on an iOS keyboard with
@@ -82,6 +87,12 @@ class AgentRouter {
     'without searching', "don't look online", 'do not look online',
     'without internet access', "don't go online", 'do not go online',
     "don't search the web", 'do not search the web',
+    // Bangla, in the three registers a user might address the assistant in.
+    'ইন্টারনেট ব্যবহার করো না', 'ইন্টারনেট ব্যবহার করবে না', 'ইন্টারনেট ব্যবহার করবেন না',
+    'ইন্টারনেট ছাড়া', 'নেট ছাড়া', 'শুধু অফলাইনে',
+    'অনলাইনে খুঁজো না', 'অনলাইনে খুঁজবে না', 'অনলাইনে খুঁজবেন না',
+    'ওয়েবে খুঁজো না', 'ওয়েবে খুঁজবে না', 'ওয়েবে খুঁজবেন না',
+    'সার্চ করো না', 'সার্চ করবে না', 'সার্চ করবেন না',
   ];
 
   static const List<String> explicitFileOnlyPhrases = [
@@ -89,6 +100,8 @@ class AgentRouter {
     'only use this document', 'just this pdf', 'only from this file',
     'only from this document', 'use only the attached', 'based only on this file',
     'based only on the attached', 'only this document', 'only this file',
+    'শুধু এই ফাইল', 'শুধুমাত্র এই ফাইল', 'শুধু এই ডকুমেন্ট', 'শুধু এই পিডিএফ', 'শুধু এই pdf',
+    'শুধু সংযুক্ত ফাইল',
   ];
 
   static const List<String> deviceTimePhrases = [
@@ -96,6 +109,10 @@ class AgentRouter {
     'time is it', 'what time it is', 'tell me the time', 'time now',
     "what's the time now", 'whats the time now', 'time right now',
     'what time is it here',
+    // Bangla. Never a bare "সময় কত" — "পড়তে কত সময় লাগবে" is a physics question, not a
+    // clock question.
+    'কয়টা বাজে', 'কটা বাজে', 'কয়টা বাজল', 'এখন কত বাজে', 'এখন সময় কত', 'এখন কয়টা',
+    'এখন কটা',
   ];
 
   static const List<String> deviceDatePhrases = [
@@ -103,6 +120,8 @@ class AgentRouter {
     "today's date", "what is today's date", 'what is the date today',
     'what date is it', "what's the date", 'whats the date', 'the time today',
     'the date today', 'what day of the week', 'is today',
+    'আজ কত তারিখ', 'আজকে কত তারিখ', 'আজকের তারিখ', 'তারিখ কত আজ', 'আজ কী বার', 'আজ কি বার',
+    'আজকে কী বার', 'আজকে কি বার', 'আজ কোন বার',
   ];
 
   /// Multi-word patterns that are strong, low-false-positive signals that the answer can change
@@ -119,6 +138,12 @@ class AgentRouter {
     'available now', 'latest ios', 'latest xcode', 'latest swift', 'latest python',
     'newest release', 'worth today', 'worth right now', 'current information',
     'up to date information', 'up-to-date information', 'information online',
+    // Bangla. No equivalent of "who won": "পলাশীর যুদ্ধে কে জিতেছিল" is a history question a
+    // student will ask, and it must not be forced to the web.
+    'সর্বশেষ খবর', 'আজকের খবর', 'সাম্প্রতিক খবর', 'আজকের আবহাওয়া', 'আবহাওয়ার পূর্বাভাস',
+    'আবহাওয়া কেমন', 'বর্তমান প্রধানমন্ত্রী', 'বর্তমান রাষ্ট্রপতি', 'বর্তমান দাম', 'আজকের দাম',
+    'বাজারদর', 'ডলারের রেট', 'সোনার দাম', 'খেলার স্কোর', 'ম্যাচের স্কোর', 'ম্যাচে কে জিত',
+    'সর্বশেষ সংস্করণ', 'সর্বশেষ ভার্সন',
   ];
 
   /// Office/role titles for the generalized "who is the (current) <role> (of X)" pattern —
@@ -149,11 +174,13 @@ class AgentRouter {
     'latest', 'current', 'today', 'recently', 'this week', 'who is currently',
     'recent release', 'new release', 'weather', 'score', 'schedule', 'ceo',
     'president', 'regulation', 'stock', 'availability', 'price', 'version', 'news', 'law',
+    'সাম্প্রতিক', 'আবহাওয়া', 'খবর', 'বাজারদর',
   ];
 
   static const List<String> fileReferencePhrases = [
     'in this pdf', 'in my file', 'in this file', 'in this document', 'search my files',
     'based on the document', 'attached file', 'attached document', 'in my document',
+    'এই পিডিএফে', 'এই ফাইলে', 'এই ডকুমেন্টে', 'সংযুক্ত ফাইল', 'আমার ফাইলে',
   ];
 
   /// Generalized "latest/newest/current <product> version|release" pattern — covers any product
@@ -188,7 +215,7 @@ class AgentRouter {
   // ---------------------------------------------------------------------------------------
 
   AgentRoute route(AgentRequest request) {
-    final lowered = request.userMessage.toLowerCase();
+    final lowered = BanglaText.normalize(request.userMessage.toLowerCase());
     final hasDocuments = request.attachedDocuments.isNotEmpty;
 
     // 1. Explicit instruction/restriction always wins — checked before everything else,
@@ -288,10 +315,25 @@ class AgentRouter {
     return false;
   }
 
-  static bool _containsAny(String lowered, List<String> phrases) {
-    for (final phrase in phrases) {
+  static bool _containsAny(String lowered, List<String> phrases) =>
+      containsAnyPhrase(lowered, phrases);
+
+  /// Whether [lowered] — already lower-cased and passed through [BanglaText.normalize] —
+  /// contains any of [phrases].
+  ///
+  /// The phrases are normalised too (once per table, then cached), because a Bangla literal
+  /// in this file is in whatever form the editor saved it in, and that need not be the form
+  /// the user's keyboard produced.
+  static bool containsAnyPhrase(String lowered, List<String> phrases) {
+    final normalized = _normalizedPhrases.putIfAbsent(
+      phrases,
+      () => phrases.map(BanglaText.normalize).toList(growable: false),
+    );
+    for (final phrase in normalized) {
       if (lowered.contains(phrase)) return true;
     }
     return false;
   }
+
+  static final Map<List<String>, List<String>> _normalizedPhrases = Map.identity();
 }

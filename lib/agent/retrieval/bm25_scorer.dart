@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../../utilities/bangla_text.dart';
+
 /// Lightweight BM25 lexical scorer over a small in-session corpus (memory facts, document
 /// chunks). Not meant to scale beyond a few hundred short passages — there is no persistent
 /// index; everything is recomputed per query, which is fine at this scale. No stemming and no
@@ -11,7 +13,11 @@ abstract final class BM25Scorer {
   /// Splits on any non-alphanumeric run. Unicode-aware, matching Swift's
   /// `CharacterSet.alphanumerics.inverted` — an ASCII-only `[^a-z0-9]+` would silently shred
   /// every non-Latin script into empty tokens.
-  static final RegExp _separators = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+  ///
+  /// `\p{M}` (combining marks) is part of the token, as it is in Swift's `alphanumerics`.
+  /// Without it every Bangla word is cut apart at its vowel signs and hasanta — `সালোকসংশ্লেষণ`
+  /// became `[স, ল, কস, শ, ল, ষণ]` — and Bangla retrieval matched on single letters.
+  static final RegExp _separators = RegExp(r'[^\p{L}\p{M}\p{N}]+', unicode: true);
 
   /// Returns a score per document index in [documents]; higher is more relevant.
   static List<double> scores({required String query, required List<String> documents}) {
@@ -59,7 +65,12 @@ abstract final class BM25Scorer {
     return results;
   }
 
-  static List<String> _tokenize(String text) => text
+  static List<String> _tokenize(String text) => tokenize(text);
+
+  /// The scorer's tokenisation: Bangla-normalised, lower-cased, split on anything that is not
+  /// a letter, combining mark or digit. Public so the curriculum index can build its FTS
+  /// queries from exactly the same terms.
+  static List<String> tokenize(String text) => BanglaText.normalize(text)
       .toLowerCase()
       .split(_separators)
       .where((token) => token.isNotEmpty)

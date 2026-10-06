@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import '../domain/generation_configuration.dart';
 import '../domain/generation_metrics.dart';
+import '../l10n/app_strings.dart';
 import '../llm/chat_engine.dart';
 import 'agent_decision.dart';
 import 'agent_event.dart';
@@ -11,6 +12,7 @@ import 'agent_request.dart';
 import 'agent_router.dart';
 import 'context_assembler.dart';
 import 'context_budget.dart';
+import 'curriculum/textbook_retriever.dart';
 import 'device_context_tool.dart';
 import 'documents/document_chunk.dart';
 import 'documents/local_document_manager.dart';
@@ -80,9 +82,11 @@ class AgentOrchestrator {
     required ChatEngine chatEngine,
     required LocalDocumentManager documentManager,
     required Future<WebSearchService?> Function() webSearchServiceProvider,
+    TextbookRetriever? textbookRetriever,
   })  : _chatEngine = chatEngine,
         _documentManager = documentManager,
         _webSearchServiceProvider = webSearchServiceProvider,
+        _textbookRetriever = textbookRetriever,
         _planner = AgentPlanner(chatEngine: chatEngine),
         _sessionMemory = SessionMemoryManager(chatEngine: chatEngine);
 
@@ -106,6 +110,10 @@ class AgentOrchestrator {
   /// would never take effect until the app fully restarted, since the orchestrator is
   /// constructed exactly once at launch.
   final Future<WebSearchService?> Function() _webSearchServiceProvider;
+
+  /// The student's curriculum pack. Searched on every question that is not about current
+  /// events, the clock or the web — i.e. on every ordinary study question.
+  final TextbookRetriever? _textbookRetriever;
 
   final AgentRouter _router = const AgentRouter();
   final AgentPlanner _planner;
@@ -244,7 +252,8 @@ class AgentOrchestrator {
       emit(const AgentProvenanceUpdatedEvent(ResponseProvenance.empty));
       emit(const AgentGeneratingEvent());
       emit(AgentTokenEvent(
-          _webEvidenceUnavailableMessage(_WebEvidenceUnavailableReason.notAllowed)));
+          _webEvidenceUnavailableMessage(
+              _WebEvidenceUnavailableReason.notAllowed, request.userMessage)));
       emit(const AgentCompletedEvent(
         reason: GenerationFinishReason.endOfSequence,
         metrics: GenerationMetrics.empty,
@@ -285,14 +294,32 @@ class AgentOrchestrator {
 
     var documentChunks = <DocumentChunk>[];
     var webChunks = <RetrievedWebChunk>[];
+    var textbookExcerpts = <TextbookExcerpt>[];
     Duration? searchDuration;
     Duration? documentRetrievalDuration;
+
+    // Textbooks are consulted for every question except those that need *current*
+    // information — a textbook is never the source for today's news — and those whose answer
+    // must come from the web alone. The raw message is searched, not the web-minimised query:
+    // the minimiser is tuned for search engines and drops words the keyword index needs.
+    final textbookRetriever = _textbookRetriever;
+    final wantsTextbooks = textbookRetriever != null &&
+        !decision.needsCurrentInformation &&
+        evidenceRequirement != EvidenceRequirement.webRequired;
+    if (wantsTextbooks) {
+      emit(const AgentSearchingTextbooksEvent());
+      final start = DateTime.now();
+      textbookExcerpts = List.of(await textbookRetriever.search(request.userMessage));
+      documentRetrievalDuration = DateTime.now().difference(start);
+      _log('[Textbook] excerpts=${textbookExcerpts.length}');
+    }
 
     if (wantsFiles) {
       emit(const AgentReadingDocumentsEvent());
       final start = DateTime.now();
       documentChunks = await _documentManager.retrieveRelevantChunks(effectiveQuery);
-      documentRetrievalDuration = DateTime.now().difference(start);
+      documentRetrievalDuration =
+          (documentRetrievalDuration ?? Duration.zero) + DateTime.now().difference(start);
       _log('[Retrieval] usableChunks=${documentChunks.length}');
     }
 
@@ -343,7 +370,7 @@ class AgentOrchestrator {
         _log('[Provenance] usedWeb=false reason=${reason.name}');
         emit(const AgentProvenanceUpdatedEvent(ResponseProvenance.empty));
         emit(const AgentGeneratingEvent());
-        emit(AgentTokenEvent(_webEvidenceUnavailableMessage(reason)));
+        emit(AgentTokenEvent(_webEvidenceUnavailableMessage(reason, request.userMessage)));
         emit(const AgentCompletedEvent(
           reason: GenerationFinishReason.endOfSequence,
           metrics: GenerationMetrics.empty,
@@ -355,6 +382,17 @@ class AgentOrchestrator {
 
     // Provenance is derived from real pipeline state only, never from the model's text.
     final sources = <SourceReference>[];
+    for (var index = 0; index < textbookExcerpts.length; index++) {
+      final excerpt = textbookExcerpts[index];
+      sources.add(SourceReference(
+        id: 'book:${index + 1}',
+        kind: SourceKind.textbook,
+        title: excerpt.bookTitle,
+        url: null,
+        page: excerpt.page,
+        section: null,
+      ));
+    }
     for (var index = 0; index < documentChunks.length; index++) {
       final chunk = documentChunks[index];
       sources.add(SourceReference(
@@ -379,7 +417,7 @@ class AgentOrchestrator {
     }
     final provenance = ResponseProvenance(
       usedWeb: webChunks.isNotEmpty,
-      usedDocuments: documentChunks.isNotEmpty,
+      usedDocuments: documentChunks.isNotEmpty || textbookExcerpts.isNotEmpty,
       usedDeviceContext: false,
       sources: sources,
     );
@@ -406,6 +444,8 @@ class AgentOrchestrator {
         // `ContextAssemblerInput` for why the two differ.
         documentSearchPerformed: wantsFiles,
         webSearchPerformed: webChunks.isNotEmpty,
+        textbookExcerpts: textbookExcerpts,
+        textbookSearchPerformed: wantsTextbooks,
       ),
       budget: budget,
     );
@@ -421,7 +461,9 @@ class AgentOrchestrator {
           ),
     );
 
-    final ragTokenCount = documentChunks.fold<int>(
+    final ragTokenCount = textbookExcerpts.fold<int>(
+            0, (sum, excerpt) => sum + TokenEstimator.estimateTokenCount(excerpt.text)) +
+        documentChunks.fold<int>(
             0, (sum, chunk) => sum + TokenEstimator.estimateTokenCount(chunk.text)) +
         webChunks.fold<int>(
             0, (sum, chunk) => sum + TokenEstimator.estimateTokenCount(chunk.text));
@@ -534,15 +576,18 @@ class AgentOrchestrator {
     });
   }
 
-  static String _webEvidenceUnavailableMessage(_WebEvidenceUnavailableReason reason) =>
-      switch (reason) {
-        _WebEvidenceUnavailableReason.notAllowed =>
-          "I can't verify this because it needs current information and web access isn't "
-              "available for this message. I won't guess at an answer that could be outdated.",
-        _WebEvidenceUnavailableReason.retrievalFailed =>
-          "I couldn't retrieve reliable current information for this request, so I can't "
-              'answer accurately. Please try again in a moment.',
-      };
+  /// In the language of [userMessage] — a question asked in Bangla is refused in Bangla —
+  /// rather than in the language of the app's buttons.
+  static String _webEvidenceUnavailableMessage(
+    _WebEvidenceUnavailableReason reason,
+    String userMessage,
+  ) {
+    final strings = AppStrings.forText(userMessage);
+    return switch (reason) {
+      _WebEvidenceUnavailableReason.notAllowed => strings.replyWebNotAllowed,
+      _WebEvidenceUnavailableReason.retrievalFailed => strings.replyWebRetrievalFailed,
+    };
+  }
 
   static String _transparencyNote({
     required bool wantsWeb,

@@ -13,6 +13,7 @@ import '../domain/chat_role.dart';
 import '../domain/chat_session_mode.dart';
 import '../domain/generation_configuration.dart';
 import '../domain/generation_metrics.dart';
+import '../l10n/app_strings.dart';
 import '../llm/chat_engine.dart';
 import '../model_management/app_settings.dart';
 import '../persistence/conversation.dart';
@@ -268,7 +269,7 @@ class ChatViewModel extends ChangeNotifier {
     _attachedDocuments = const [];
     _pendingWebSearchQuery = null;
     _pendingWebSearchConfirmation = null;
-    _conversationTitle = 'Temporary Chat';
+    _conversationTitle = AppStrings.current.temporaryChat;
     _sessionMode = const ChatSessionMode.temporary();
     _notify();
   }
@@ -491,11 +492,13 @@ class ChatViewModel extends ChangeNotifier {
           case AgentGeneratingEvent():
             setActivity(null);
           case AgentPlanningEvent():
-            setActivity('Thinking…');
+            setActivity(AppStrings.current.thinking);
           case AgentSearchingWebEvent():
-            setActivity('Searching the web…');
+            setActivity(AppStrings.current.searchingWeb);
           case AgentReadingDocumentsEvent():
-            setActivity('Searching documents…');
+            setActivity(AppStrings.current.searchingDocuments);
+          case AgentSearchingTextbooksEvent():
+            setActivity(AppStrings.current.searchingTextbooks);
           case AgentNeedsWebSearchConfirmationEvent(:final query):
             _activityStatus = null;
             _pendingWebSearchQuery = query;

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'app/app_coordinator.dart';
+import 'curriculum/curriculum_service.dart';
+import 'l10n/app_strings.dart';
 import 'model_management/app_settings.dart';
 import 'persistence/conversation_repository.dart';
 import 'viewmodels/app_view_model.dart';
@@ -12,6 +16,11 @@ Future<void> main() async {
   // Required before any plugin channel is touched, and `AppCoordinator.create` touches three
   // of them — SharedPreferences, path_provider and sqflite.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Date and time symbols for every locale `intl` knows, not just the UI's: a Bangla question
+  // on an English-language phone still gets its date answer formatted in Bangla
+  // (`DeviceContextTool`), and that needs the `bn` tables loaded regardless of the UI locale.
+  await initializeDateFormatting();
 
   try {
     final coordinator = await AppCoordinator.create();
@@ -52,18 +61,41 @@ class _OfflineAiChatAppState extends State<OfflineAiChatApp> {
         Provider<AppCoordinator>.value(value: widget.coordinator),
         Provider<ConversationRepository>.value(value: widget.coordinator.repository),
         ChangeNotifierProvider<AppSettings>.value(value: widget.coordinator.settings),
+        ChangeNotifierProvider<CurriculumService>.value(value: widget.coordinator.curriculum),
         ChangeNotifierProvider<AppViewModel>.value(value: _appViewModel),
       ],
-      child: MaterialApp(
-        title: 'Offline AI Chat',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        home: const RootView(),
+      // Only the language is selected here, so changing any other setting does not rebuild
+      // the whole app.
+      child: Selector<AppSettings, AppLanguage>(
+        selector: (_, settings) => settings.appLanguage,
+        builder: (context, language, _) => MaterialApp(
+          onGenerateTitle: (context) => AppStrings.of(context).appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          locale: language.locale,
+          supportedLocales: AppStrings.supportedLocales,
+          localizationsDelegates: _localizationsDelegates,
+          localeResolutionCallback: _resolveLocale,
+          home: const RootView(),
+        ),
       ),
     );
   }
 }
+
+const List<LocalizationsDelegate<Object>> _localizationsDelegates = [
+  AppStrings.delegate,
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];
+
+/// Bangla for a device in Bangla (`bn`, `bn_BD`, `bn_IN`), English for everything else —
+/// including when the device lists Bangla only as a second preference, which is what the
+/// default resolution would also pick and is the least surprising outcome.
+Locale _resolveLocale(Locale? deviceLocale, Iterable<Locale> supported) =>
+    deviceLocale?.languageCode == 'bn' ? const Locale('bn') : const Locale('en');
 
 /// The one screen that exists outside the dependency graph, because the graph is what failed.
 class StartupFailureApp extends StatelessWidget {
@@ -73,11 +105,16 @@ class StartupFailureApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No settings exist here — loading them is part of what failed — so this follows the
+    // device language.
     return MaterialApp(
-      title: 'Offline AI Chat',
+      onGenerateTitle: (context) => AppStrings.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      supportedLocales: AppStrings.supportedLocales,
+      localizationsDelegates: _localizationsDelegates,
+      localeResolutionCallback: _resolveLocale,
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(
@@ -93,7 +130,7 @@ class StartupFailureApp extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Offline AI Chat',
+                    AppStrings.of(context).appTitle,
                     style: AppText.title(context),
                     textAlign: TextAlign.center,
                   ),

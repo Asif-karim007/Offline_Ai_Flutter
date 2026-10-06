@@ -1,5 +1,7 @@
 import 'package:llama_bindings/llama_bindings.dart' show isLlamaLibraryAvailable;
 
+import '../curriculum/curriculum_service.dart';
+import '../l10n/app_strings.dart';
 import '../llm/chat_engine.dart';
 import '../llm/llama_engine.dart';
 import '../llm/model_metadata_reader.dart';
@@ -55,6 +57,7 @@ class AppCoordinator {
     required this.modelStore,
     required this.bootstrapService,
     required this.metadataReader,
+    required this.curriculum,
   });
 
   /// Builds the graph.
@@ -71,7 +74,7 @@ class AppCoordinator {
     try {
       repository = await SqfliteConversationRepository.open();
     } on Object catch (error) {
-      throw AppStartupException('Failed to open the conversation store: $error');
+      throw AppStartupException(AppStrings.current.conversationStoreFailed('$error'));
     }
 
     // 2. The single, app-lifetime inference engine. One engine means one `llama_context`
@@ -99,6 +102,12 @@ class AppCoordinator {
     // 4. The models directory.
     final modelStore = await ModelStore.open();
 
+    // 5. The student's textbooks. `start` only reads local files — the cached pack list and
+    //    what is installed — so launch never waits on the network; the list refresh and the
+    //    active pack's index open in the background.
+    final curriculum = await CurriculumService.open(settings);
+    await curriculum.start();
+
     final coordinator = AppCoordinator._(
       repository: repository,
       chatEngine: chatEngine,
@@ -108,6 +117,7 @@ class AppCoordinator {
       // it, holding no state of its own.
       bootstrapService: ModelBootstrapService(modelStore: modelStore),
       metadataReader: const ModelMetadataReader(),
+      curriculum: curriculum,
     );
 
     AppLog.ui('app.graphConstructed');
@@ -129,6 +139,9 @@ class AppCoordinator {
 
   final ModelMetadataReader metadataReader;
 
+  /// Curriculum packs: download, install, and the textbook search the agent uses.
+  final CurriculumService curriculum;
+
   /// Re-reads the keychain on every call, and is meant to be called per request rather than
   /// held.
   ///
@@ -143,6 +156,7 @@ class AppCoordinator {
   /// Releases everything the graph holds. Called when the app is torn down, and by tests
   /// between cases.
   Future<void> dispose() async {
+    curriculum.dispose();
     settings.dispose();
     await chatEngine.unloadModel();
     final store = repository;

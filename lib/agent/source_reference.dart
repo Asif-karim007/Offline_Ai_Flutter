@@ -1,4 +1,4 @@
-enum SourceKind { document, web }
+enum SourceKind { document, web, textbook }
 
 /// A citation the UI can render and the user can tap, mapped back from real retrieval/search
 /// metadata — never from text the model generated. The model only ever emits bracketed IDs

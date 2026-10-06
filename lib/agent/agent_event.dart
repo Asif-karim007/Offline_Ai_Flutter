@@ -54,6 +54,17 @@ final class AgentReadingDocumentsEvent extends AgentEvent {
   int get hashCode => (AgentReadingDocumentsEvent).hashCode;
 }
 
+/// The question is being looked up in the student's curriculum pack.
+final class AgentSearchingTextbooksEvent extends AgentEvent {
+  const AgentSearchingTextbooksEvent();
+
+  @override
+  bool operator ==(Object other) => other is AgentSearchingTextbooksEvent;
+
+  @override
+  int get hashCode => (AgentSearchingTextbooksEvent).hashCode;
+}
+
 /// Emitted instead of generating when the web-search mode is "ask" and the route wants a web
 /// search the user has not approved for this turn. The stream then ends without a completion
 /// event; the caller re-submits the request with approval granted.

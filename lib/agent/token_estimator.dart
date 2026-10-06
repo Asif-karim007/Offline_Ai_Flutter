@@ -11,9 +11,15 @@
 /// matters more than the absolute number: this estimator is deliberately crude, and the same
 /// convention on both sides of a comparison keeps chunk sizing and truncation coherent.
 abstract final class TokenEstimator {
-  /// Rough average of ~4 characters per token for English-like text.
+  /// Rough average of ~4 characters per token for English-like text, and ~2 for Bengali
+  /// script.
+  ///
+  /// The 4:1 rule alone undercounts Bangla badly — its vowel signs and conjuncts are separate
+  /// code units, and BPE vocabularies cover the script far more sparsely than English — so a
+  /// textbook passage sized "to fit" by it would overflow the context. Counting Bengali code
+  /// units at half weight keeps estimates for English text exactly as they were.
   static int estimateTokenCount(String text) {
-    final estimate = text.length ~/ 4;
+    final estimate = _cost(text, text.length) ~/ _scale;
     return estimate > 1 ? estimate : 1;
   }
 
@@ -21,8 +27,30 @@ abstract final class TokenEstimator {
   /// Returns an empty string when the budget is not positive.
   static String truncate(String text, {required int tokenBudget}) {
     if (tokenBudget <= 0) return '';
-    final approxCharBudget = tokenBudget * 4;
-    if (text.length <= approxCharBudget) return text;
-    return '${text.substring(0, approxCharBudget)}…';
+    final budget = tokenBudget * _scale;
+    if (_cost(text, text.length) <= budget) return text;
+    var spent = 0;
+    var end = 0;
+    while (end < text.length) {
+      final next = spent + _unitCost(text.codeUnitAt(end));
+      if (next > budget) break;
+      spent = next;
+      end++;
+    }
+    return '${text.substring(0, end)}…';
+  }
+
+  /// Costs are in quarter-tokens so both scripts stay in integer arithmetic: a Latin code
+  /// unit costs 1 (four per token), a Bengali one 2 (two per token).
+  static const int _scale = 4;
+
+  static int _unitCost(int unit) => unit >= 0x0980 && unit <= 0x09FF ? 2 : 1;
+
+  static int _cost(String text, int end) {
+    var cost = 0;
+    for (var index = 0; index < end; index++) {
+      cost += _unitCost(text.codeUnitAt(index));
+    }
+    return cost;
   }
 }

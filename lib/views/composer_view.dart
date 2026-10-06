@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import 'theme.dart';
 
 /// The input bar.
@@ -65,7 +66,7 @@ class ComposerView extends StatelessWidget {
                 if (attach != null)
                   _RoundIconButton(
                     icon: AppIcons.paperclip,
-                    tooltip: 'Add File',
+                    tooltip: AppStrings.of(context).addFile,
                     // Disabled mid-generation: the attachment would land on a turn that has
                     // already been sent.
                     onPressed: isGenerating ? null : attach,
@@ -98,7 +99,7 @@ class ComposerView extends StatelessWidget {
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isCollapsed: true,
-                        hintText: 'Message',
+                        hintText: AppStrings.of(context).messageHint,
                         hintStyle: AppText.body(context).copyWith(
                           color: AppColors.secondaryLabel(context),
                         ),
@@ -145,7 +146,7 @@ class _SendButton extends StatelessWidget {
 
     return _RoundIconButton(
       icon: isGenerating ? AppIcons.stopFill : AppIcons.arrowUpCircleFill,
-      tooltip: isGenerating ? 'Stop' : 'Send',
+      tooltip: isGenerating ? AppStrings.of(context).stop : AppStrings.of(context).send,
       // Always tappable while generating, so the stop is always reachable.
       onPressed: enabled ? (isGenerating ? onStop : onSend) : null,
       size: 34,

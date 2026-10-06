@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../model_management/model_bootstrap_service.dart';
 import 'error_banner.dart';
 import 'theme.dart';
@@ -43,7 +44,7 @@ class SplashView extends StatelessWidget {
                     const Spacer(),
                     const ExcludeSemantics(child: _AppMark()),
                     const SizedBox(height: 20),
-                    Text('Offline AI Chat', style: AppText.title2(context)),
+                    Text(AppStrings.of(context).appTitle, style: AppText.title2(context)),
                     const SizedBox(height: 28),
                     if (failure is FailedLoading)
                       _FailureBranch(
@@ -112,7 +113,7 @@ class _LoadingBranch extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Semantics(
-          label: 'Status: $statusText',
+          label: AppStrings.of(context).statusLabel(statusText),
           excludeSemantics: true,
           child: Text(
             statusText,
@@ -159,7 +160,7 @@ class _FailureBranch extends StatelessWidget {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: onRetry,
-                    child: const Text('Retry'),
+                    child: Text(AppStrings.of(context).retry),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -167,7 +168,7 @@ class _FailureBranch extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: onChooseAnotherModel,
-                    child: const Text('Choose Another Model'),
+                    child: Text(AppStrings.of(context).chooseAnotherModel),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -176,7 +177,7 @@ class _FailureBranch extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: onDeleteInvalidModel,
                     style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
-                    child: const Text('Delete Invalid Model'),
+                    child: Text(AppStrings.of(context).deleteInvalidModel),
                   ),
                 ),
               ],

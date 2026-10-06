@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/generation_metrics.dart';
+import '../l10n/app_strings.dart';
 import '../utilities/file_size_formatter.dart';
 import 'theme.dart';
 
@@ -29,69 +30,71 @@ class GenerationDebugView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = onDone;
+    final strings = AppStrings.of(context);
+    String seconds(Duration duration) => strings.seconds(_seconds(duration));
 
     // No `backgroundColor` here: `scaffoldBackgroundColor` is already `AppColors.page`.
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Debug Metrics'),
+        title: Text(strings.debugMetrics),
         leading: done == null
             ? null
-            : TextButton(onPressed: done, child: const Text('Done')),
+            : TextButton(onPressed: done, child: Text(strings.done)),
         leadingWidth: 88,
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
-          const _SectionHeader('Model'),
+          _SectionHeader(strings.model),
           _MetricCard(
             rows: [
-              _MetricRow('Name', metrics.modelName),
+              _MetricRow(strings.name, metrics.modelName),
               _MetricRow(
-                'File size',
+                strings.fileSize,
                 FileSizeFormatter.string(bytes: metrics.modelFileSizeBytes),
               ),
-              _MetricRow('Native context', '${metrics.nativeContextLength}'),
-              _MetricRow('Allocated context', '${metrics.allocatedContextLength}'),
+              _MetricRow(strings.nativeContext, '${metrics.nativeContextLength}'),
+              _MetricRow(strings.allocatedContext, '${metrics.allocatedContextLength}'),
             ],
           ),
-          const _SectionHeader('Last generation'),
+          _SectionHeader(strings.lastGeneration),
           _MetricCard(
             rows: [
-              _MetricRow('Prompt tokens', '${metrics.promptTokenCount}'),
-              _MetricRow('Reserved output tokens', '${metrics.reservedOutputTokens}'),
-              _MetricRow('Generated tokens', '${metrics.generatedTokenCount}'),
+              _MetricRow(strings.promptTokens, '${metrics.promptTokenCount}'),
+              _MetricRow(strings.reservedOutputTokens, '${metrics.reservedOutputTokens}'),
+              _MetricRow(strings.generatedTokens, '${metrics.generatedTokenCount}'),
               if (metrics.firstTokenLatency != null)
                 _MetricRow(
-                  'First-token latency',
-                  _seconds(metrics.firstTokenLatency!),
+                  strings.firstTokenLatency,
+                  seconds(metrics.firstTokenLatency!),
                 ),
               if (metrics.totalGenerationDuration != null)
-                _MetricRow('Total duration', _seconds(metrics.totalGenerationDuration!)),
+                _MetricRow(strings.totalDuration, seconds(metrics.totalGenerationDuration!)),
               if (metrics.tokensPerSecond != null)
                 _MetricRow(
-                  'Tokens / second',
+                  strings.tokensPerSecondLabel,
                   metrics.tokensPerSecond!.toStringAsFixed(1),
                 ),
             ],
           ),
           if (_hasAgentMetrics) ...[
-            const _SectionHeader('Agent Pipeline'),
+            _SectionHeader(strings.agentPipeline),
             _MetricCard(
               rows: [
                 if (metrics.plannerDuration != null)
-                  _MetricRow('Planner duration', _seconds(metrics.plannerDuration!)),
+                  _MetricRow(strings.plannerDuration, seconds(metrics.plannerDuration!)),
                 if (metrics.searchDuration != null)
-                  _MetricRow('Web search duration', _seconds(metrics.searchDuration!)),
+                  _MetricRow(strings.webSearchDuration, seconds(metrics.searchDuration!)),
                 if (metrics.documentRetrievalDuration != null)
                   _MetricRow(
-                    'Document retrieval duration',
-                    _seconds(metrics.documentRetrievalDuration!),
+                    strings.documentRetrievalDuration,
+                    seconds(metrics.documentRetrievalDuration!),
                   ),
                 if (metrics.ragTokenCount != null)
-                  _MetricRow('RAG evidence tokens (est.)', '${metrics.ragTokenCount}'),
+                  _MetricRow(strings.ragEvidenceTokens, '${metrics.ragTokenCount}'),
                 if (metrics.memoryTokenCount != null)
                   _MetricRow(
-                    'Session memory tokens (est.)',
+                    strings.sessionMemoryTokens,
                     '${metrics.memoryTokenCount}',
                   ),
               ],
@@ -102,11 +105,11 @@ class GenerationDebugView extends StatelessWidget {
     );
   }
 
-  /// `String(format: "%.2fs", duration)` — Swift formatted a `TimeInterval`, which is
-  /// seconds as a double.
+  /// The number half of Swift's `String(format: "%.2fs", duration)` — a `TimeInterval` is
+  /// seconds as a double. The unit comes from [AppStrings.seconds].
   static String _seconds(Duration duration) {
     final seconds = duration.inMicroseconds / Duration.microsecondsPerSecond;
-    return '${seconds.toStringAsFixed(2)}s';
+    return seconds.toStringAsFixed(2);
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../domain/generation_configuration.dart';
 import '../llm/chat_engine.dart';
+import '../utilities/bangla_text.dart';
 import 'agent_decision.dart';
 import 'agent_request.dart';
 import 'agent_router.dart';
@@ -166,13 +167,13 @@ Only choose web_search or file_search when it is clearly necessary; prefer "answ
     required AgentRequest request,
     required String reason,
   }) {
-    final lowered = request.userMessage.toLowerCase();
+    final lowered = BanglaText.normalize(request.userMessage.toLowerCase());
     final hasDocuments = request.attachedDocuments.isNotEmpty;
 
     final isDefinitionalUseOfFreshnessWord =
-        AgentRouter.negativeFreshnessGuards.any(lowered.contains);
+        AgentRouter.containsAnyPhrase(lowered, AgentRouter.negativeFreshnessGuards);
 
-    if (AgentRouter.explicitNoWebPhrases.any(lowered.contains)) {
+    if (AgentRouter.containsAnyPhrase(lowered, AgentRouter.explicitNoWebPhrases)) {
       final needsCurrentInfo = !isDefinitionalUseOfFreshnessWord &&
           AgentRouter.matchesHardFreshness(lowered);
       // `needsPrivateFiles` follows the attachments even when the action is a plain answer —
@@ -186,7 +187,7 @@ Only choose web_search or file_search when it is clearly necessary; prefer "answ
       );
     }
 
-    if (AgentRouter.explicitWebPhrases.any(lowered.contains)) {
+    if (AgentRouter.containsAnyPhrase(lowered, AgentRouter.explicitWebPhrases)) {
       return AgentDecision(
         action: hasDocuments ? AgentAction.webAndFileSearch : AgentAction.webSearch,
         query: request.userMessage,
@@ -196,8 +197,8 @@ Only choose web_search or file_search when it is clearly necessary; prefer "answ
       );
     }
 
-    if (AgentRouter.deviceTimePhrases.any(lowered.contains) ||
-        AgentRouter.deviceDatePhrases.any(lowered.contains)) {
+    if (AgentRouter.containsAnyPhrase(lowered, AgentRouter.deviceTimePhrases) ||
+        AgentRouter.containsAnyPhrase(lowered, AgentRouter.deviceDatePhrases)) {
       return AgentDecision(
         action: AgentAction.deviceContext,
         query: request.userMessage,
@@ -209,7 +210,7 @@ Only choose web_search or file_search when it is clearly necessary; prefer "answ
 
     final wantsWeb = !isDefinitionalUseOfFreshnessWord &&
         (AgentRouter.matchesHardFreshness(lowered) ||
-            AgentRouter.currentInformationPhrases.any(lowered.contains));
+            AgentRouter.containsAnyPhrase(lowered, AgentRouter.currentInformationPhrases));
     // Mirrors the router's "always plan when documents are attached" rule: a document question
     // does not need an explicit "in this file" phrase to be about the file.
     final wantsFiles = hasDocuments;

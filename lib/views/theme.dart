@@ -410,6 +410,7 @@ abstract final class AppIcons {
 
   /// `doc.text`
   static const IconData docText = Icons.description_outlined;
+  static const IconData books = Icons.menu_book_outlined;
 
   /// `xmark.circle.fill`
   static const IconData xmarkCircleFill = Icons.cancel;

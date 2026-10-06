@@ -7,11 +7,15 @@ import 'package:provider/provider.dart';
 
 import '../agent/documents/local_document_reference.dart';
 import '../agent/response_provenance.dart';
+import '../curriculum/curriculum_pack.dart';
+import '../curriculum/curriculum_service.dart';
 import '../domain/chat_message.dart';
+import '../l10n/app_strings.dart';
 import '../model_management/app_settings.dart';
 import '../model_management/model_catalog.dart';
 import '../viewmodels/chat_view_model.dart';
 import 'composer_view.dart';
+import 'curriculum_packs_view.dart';
 import 'error_banner.dart';
 import 'generation_debug_view.dart';
 import 'message_bubble.dart';
@@ -44,13 +48,6 @@ class ChatView extends StatefulWidget {
   /// Null in the wide layout, where the sidebar is already on screen and a button that
   /// reveals it would do nothing.
   final VoidCallback? onShowSidebar;
-
-  /// The empty state's three starters, verbatim.
-  static const List<String> suggestions = [
-    'Explain Swift actors',
-    'Create a study plan',
-    'Help me debug Swift code',
-  ];
 
   /// The Swift `[.pdf, .plainText, .json, .commaSeparatedText, .sourceCode, .text]` expanded
   /// into extensions, since `file_picker` filters by extension rather than by UTI.
@@ -218,6 +215,7 @@ class _ChatViewState extends State<ChatView> {
     final debugMetricsEnabled =
         context.select<AppSettings, bool>((settings) => settings.debugMetricsEnabled);
     final showSidebar = widget.onShowSidebar;
+    final strings = AppStrings.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.page(context),
@@ -228,42 +226,42 @@ class _ChatViewState extends State<ChatView> {
         leading: showSidebar == null
             ? null
             : Semantics(
-                label: 'Show Conversations',
+                label: strings.showConversations,
                 button: true,
                 child: IconButton(
                   onPressed: showSidebar,
                   icon: const Icon(AppIcons.sidebarLeft),
-                  tooltip: 'Show Conversations',
+                  tooltip: strings.showConversations,
                 ),
               ),
         title: const _ChatTitle(),
         actions: [
           Semantics(
-            label: 'New Chat',
+            label: strings.newChat,
             button: true,
             child: IconButton(
               onPressed: widget.onNewChat,
               icon: const Icon(AppIcons.squareAndPencil),
-              tooltip: 'New Chat',
+              tooltip: strings.newChat,
             ),
           ),
           Semantics(
-            label: 'Start Temporary Chat',
+            label: strings.startTemporaryChat,
             button: true,
             child: IconButton(
               onPressed: widget.onToggleTemporaryChat,
               icon: const Icon(AppIcons.eyeSlash),
-              tooltip: 'Start Temporary Chat',
+              tooltip: strings.startTemporaryChat,
             ),
           ),
           if (debugMetricsEnabled)
             Semantics(
-              label: 'Debug Metrics',
+              label: strings.debugMetrics,
               button: true,
               child: IconButton(
                 onPressed: _showDebugMetrics,
                 icon: const Icon(AppIcons.speedometer),
-                tooltip: 'Debug Metrics',
+                tooltip: strings.debugMetrics,
               ),
             ),
         ],
@@ -391,11 +389,12 @@ class _ChatTitle extends StatelessWidget {
       (settings) => settings.selectedModelFileName,
     );
 
+    final strings = AppStrings.of(context);
     if (modelFileName == null || modelFileName.isEmpty) {
       return Selector<ChatViewModel, String>(
         selector: (_, viewModel) => viewModel.isTemporary
-            ? 'Temporary Chat'
-            : (viewModel.conversationTitle ?? 'New Chat'),
+            ? strings.temporaryChat
+            : (viewModel.conversationTitle ?? strings.newChat),
         builder: (context, title, _) => Text(
           title,
           overflow: TextOverflow.ellipsis,
@@ -407,7 +406,7 @@ class _ChatTitle extends StatelessWidget {
     final label = _shortModelName(modelFileName);
     return Semantics(
       header: true,
-      label: 'Model: $label',
+      label: strings.modelTitle(label),
       excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -491,6 +490,7 @@ class _EmptyState extends StatelessWidget {
     final isBusy = context
         .select<ChatViewModel, bool>((viewModel) => viewModel.generationState.isBusy);
     final enabled = isModelReady && !isBusy;
+    final strings = AppStrings.of(context);
 
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -503,13 +503,13 @@ class _EmptyState extends StatelessWidget {
                 children: [
                   const Spacer(),
                   Text(
-                    'How can I help?',
+                    strings.emptyStateTitle,
                     textAlign: TextAlign.center,
                     style: AppText.title(context),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Everything you ask is answered by a model on this device.',
+                    strings.emptyStateSubtitle,
                     textAlign: TextAlign.center,
                     style: AppText.subheadline(context).copyWith(
                       color: AppColors.secondaryLabel(context),
@@ -520,7 +520,7 @@ class _EmptyState extends StatelessWidget {
                     constraints: const BoxConstraints(maxWidth: 360),
                     child: Column(
                       children: [
-                        for (final suggestion in ChatView.suggestions)
+                        for (final suggestion in strings.suggestions)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: SizedBox(
@@ -544,10 +544,12 @@ class _EmptyState extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  const _TextbooksPrompt(),
                   if (!isModelReady) ...[
                     const SizedBox(height: 10),
                     Text(
-                      'Model is not ready yet.',
+                      strings.modelNotReady,
                       style: AppText.footnote(context).copyWith(
                         color: AppColors.secondaryLabel(context),
                       ),
@@ -560,6 +562,35 @@ class _EmptyState extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Under the starters: the way in to the textbooks when none are chosen, and a one-line
+/// reminder of which ones answer when they are.
+class _TextbooksPrompt extends StatelessWidget {
+  const _TextbooksPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final active = context.select<CurriculumService, CurriculumPack?>(
+      (service) => service.activePack,
+    );
+    if (active == null) {
+      return TextButton.icon(
+        onPressed: () => unawaited(showCurriculumPacks(context)),
+        icon: const Icon(AppIcons.books, size: 18),
+        label: Text(strings.addTextbooks),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        strings.answersFromTextbooks(curriculumPackTitle(strings, active)),
+        textAlign: TextAlign.center,
+        style: AppText.footnote(context).copyWith(color: AppColors.secondaryLabel(context)),
       ),
     );
   }
@@ -674,6 +705,7 @@ class _WebSearchConfirmationBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.read<ChatViewModel>();
+    final strings = AppStrings.of(context);
 
     return Container(
       width: double.infinity,
@@ -686,18 +718,18 @@ class _WebSearchConfirmationBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Curly quotes around the query, exactly as in the original.
-          Text('Search the web for “$query”?', style: AppText.footnote(context)),
+          Text(strings.searchWebFor(query), style: AppText.footnote(context)),
           const SizedBox(height: 8),
           Row(
             children: [
               OutlinedButton(
                 onPressed: () => unawaited(viewModel.declinePendingWebSearch()),
-                child: const Text('Not Now'),
+                child: Text(strings.notNow),
               ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () => unawaited(viewModel.confirmPendingWebSearch()),
-                child: const Text('Search'),
+                child: Text(strings.search),
               ),
             ],
           ),
@@ -784,7 +816,7 @@ class _DocumentChip extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Semantics(
-              label: 'Remove ${document.displayName}',
+              label: AppStrings.of(context).removeDocument(document.displayName),
               button: true,
               child: InkWell(
                 onTap: () => unawaited(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import 'theme.dart';
 
 /// The notice that sits above a temporary chat.
@@ -35,7 +36,7 @@ class TemporaryChatBanner extends StatelessWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    'Temporary chat — messages will not be saved',
+                    AppStrings.of(context).temporaryChatBanner,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.caption(context).copyWith(color: muted),
                   ),

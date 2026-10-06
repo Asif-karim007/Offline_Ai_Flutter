@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../agent/agent_request.dart';
+import '../curriculum/curriculum_service.dart';
 import '../domain/local_model_info.dart';
+import '../l10n/app_strings.dart';
 import '../model_management/app_settings.dart';
 import '../utilities/file_size_formatter.dart';
 import '../viewmodels/model_manager_view_model.dart';
+import 'curriculum_packs_view.dart';
 import 'model_catalog_view.dart';
 import 'theme.dart';
 
@@ -62,12 +65,12 @@ class _ModelManagerViewState extends State<ModelManagerView> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Error'),
+          title: Text(AppStrings.of(context).error),
           content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(AppStrings.of(context).ok),
             ),
           ],
         ),
@@ -98,7 +101,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
         // `ModelCatalogView` deliberately carries no chrome of its own, so the route supplies
         // the scaffold and the bar it needs.
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Download a Model')),
+          appBar: AppBar(title: Text(AppStrings.of(context).downloadAModel)),
           body: ModelCatalogView(
             installedFileNames: installedFileNames,
             onModelDownloaded: (fileName) async {
@@ -118,22 +121,20 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     ModelManagerViewModel viewModel,
     String fileName,
   ) async {
+    final strings = AppStrings.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Switch Model?'),
-        content: const Text(
-          'This cancels any response in progress and reloads the model. Your saved chat '
-          'history is kept.',
-        ),
+        title: Text(strings.switchModelTitle),
+        content: Text(strings.switchModelBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(strings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Switch'),
+            child: Text(strings.switchAction),
           ),
         ],
       ),
@@ -149,24 +150,23 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     ModelManagerViewModel viewModel,
     String fileName,
   ) async {
+    final strings = AppStrings.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Model?'),
-        content: const Text(
-          'This removes the model file from your device. You can download it again later.',
-        ),
+        title: Text(strings.deleteModelTitle),
+        content: Text(strings.deleteModelBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(strings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(strings.delete),
           ),
         ],
       ),
@@ -185,21 +185,26 @@ class _ModelManagerViewState extends State<ModelManagerView> {
   Widget build(BuildContext context) {
     final viewModel = context.watch<ModelManagerViewModel>();
     final settings = context.watch<AppSettings>();
+    final strings = AppStrings.of(context);
     _surfaceError(viewModel);
 
     // No `backgroundColor` here: `scaffoldBackgroundColor` is already `AppColors.page`.
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings & Models'),
+        title: Text(strings.settingsAndModels),
         leading: TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Done'),
+          child: Text(strings.done),
         ),
         leadingWidth: 88,
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
+          // First, so a user who opened the app in the wrong language finds the way out
+          // without having to read past anything else.
+          ..._languageSection(context, settings),
+          ..._textbooksSection(context),
           ..._activeModelSection(context, viewModel),
           ..._installedModelsSection(context, viewModel),
           ..._generationSettingsSection(context, settings),
@@ -212,40 +217,118 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     );
   }
 
+  // --- section 0 ------------------------------------------------------------------------
+
+  List<Widget> _languageSection(BuildContext context, AppSettings settings) {
+    final strings = AppStrings.of(context);
+    return [
+      _SectionHeader(strings.languageSection),
+      _SettingsCard(
+        children: [
+          _RowShell(
+            child: Row(
+              children: [
+                Text(strings.languageSection, style: AppText.body(context)),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: _Dropdown<AppLanguage>(
+                    isExpanded: true,
+                    value: settings.appLanguage,
+                    items: [
+                      DropdownMenuItem<AppLanguage>(
+                        value: AppLanguage.system,
+                        child: Text(strings.languageSystem, overflow: TextOverflow.ellipsis),
+                      ),
+                      // Each language is named in itself, never translated: someone who
+                      // cannot read the current language must still recognise their own.
+                      const DropdownMenuItem<AppLanguage>(
+                        value: AppLanguage.bangla,
+                        child: Text('বাংলা', overflow: TextOverflow.ellipsis),
+                      ),
+                      const DropdownMenuItem<AppLanguage>(
+                        value: AppLanguage.english,
+                        child: Text('English', overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        settings.appLanguage = value;
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      _SectionFooter(strings.languageFooter),
+    ];
+  }
+
+  // --- section 0b -----------------------------------------------------------------------
+
+  List<Widget> _textbooksSection(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final curriculum = context.watch<CurriculumService>();
+    final active = curriculum.activePack;
+    return [
+      _SectionHeader(strings.textbooks),
+      _SettingsCard(
+        children: [
+          _LabeledRow(
+            strings.answersUse,
+            active == null ? strings.none : curriculumPackTitle(strings, active),
+          ),
+          _ActionRow(
+            icon: AppIcons.books,
+            label: strings.chooseTextbooks,
+            onTap: () => unawaited(showCurriculumPacks(context)),
+          ),
+        ],
+      ),
+      _SectionFooter(strings.textbooksFooter),
+    ];
+  }
+
   // --- section 1 ------------------------------------------------------------------------
 
   List<Widget> _activeModelSection(
     BuildContext context,
     ModelManagerViewModel viewModel,
   ) {
+    final strings = AppStrings.of(context);
     final metadata = viewModel.loadedModelMetadata;
     final canReload = viewModel.selectedFileName != null && !viewModel.isSwitchingModel;
 
     return [
-      const _SectionHeader('Active Model'),
+      _SectionHeader(strings.activeModel),
       _SettingsCard(
         children: [
-          _LabeledRow('Name', viewModel.selectedFileName ?? 'None'),
+          _LabeledRow(strings.name, viewModel.selectedFileName ?? strings.none),
           if (metadata != null) ...[
             _LabeledRow(
-              'Size',
+              strings.size,
               FileSizeFormatter.string(bytes: metadata.fileSizeBytes),
             ),
-            _LabeledRow('Architecture', metadata.architecture ?? 'Unknown'),
-            _LabeledRow('Quantization', metadata.quantization ?? 'Unknown'),
+            _LabeledRow(strings.architecture, metadata.architecture ?? strings.unknown),
+            _LabeledRow(strings.quantization, metadata.quantization ?? strings.unknown),
             _LabeledRow(
-              'Native context',
-              metadata.nativeContextLength?.toString() ?? 'Unknown',
+              strings.nativeContext,
+              metadata.nativeContextLength?.toString() ?? strings.unknown,
             ),
             _LabeledRow(
-              'Chat template',
-              metadata.hasChatTemplate ? 'Present' : 'Missing',
+              strings.chatTemplate,
+              metadata.hasChatTemplate ? strings.present : strings.missing,
             ),
           ],
-          _LabeledRow('Status', viewModel.isSwitchingModel ? 'Loading…' : 'Ready'),
+          _LabeledRow(
+            strings.status,
+            viewModel.isSwitchingModel ? strings.loading : strings.ready,
+          ),
           _ActionRow(
             icon: AppIcons.arrowClockwise,
-            label: 'Reload Current Model',
+            label: strings.reloadCurrentModel,
             onTap: canReload ? () => unawaited(_reload(viewModel)) : null,
           ),
         ],
@@ -259,15 +342,16 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     BuildContext context,
     ModelManagerViewModel viewModel,
   ) {
+    final strings = AppStrings.of(context);
     return [
-      const _SectionHeader('Installed Models'),
+      _SectionHeader(strings.installedModels),
       _SettingsCard(
         children: [
           if (viewModel.installedModels.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               child: Text(
-                'No models installed yet.',
+                strings.noModelsInstalled,
                 style: AppText.body(context).copyWith(
                   color: AppColors.secondaryLabel(context),
                 ),
@@ -286,7 +370,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
               ),
           _ActionRow(
             icon: AppIcons.arrowDownCircle,
-            label: 'Download a Model',
+            label: strings.downloadAModel,
             onTap: () => unawaited(_openModelCatalog(viewModel)),
           ),
         ],
@@ -297,14 +381,15 @@ class _ModelManagerViewState extends State<ModelManagerView> {
   // --- section 3 ------------------------------------------------------------------------
 
   List<Widget> _generationSettingsSection(BuildContext context, AppSettings settings) {
+    final strings = AppStrings.of(context);
     return [
-      const _SectionHeader('Generation Settings'),
+      _SectionHeader(strings.generationSettings),
       _SettingsCard(
         children: [
           _RowShell(
             child: Row(
               children: [
-                Expanded(child: Text('Context Length', style: AppText.body(context))),
+                Expanded(child: Text(strings.contextLength, style: AppText.body(context))),
                 _Dropdown<int>(
                   // A stored value outside the three offered presets would assert rather
                   // than render, and `AppSettings` will happily hand back whatever
@@ -327,7 +412,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
             ),
           ),
           _StepperRow(
-            label: 'Max Response Tokens: ${settings.maxResponseTokens}',
+            label: strings.maxResponseTokens(settings.maxResponseTokens),
             onDecrement: settings.maxResponseTokens > AppSettings.minResponseTokens
                 ? () => settings.maxResponseTokens =
                     settings.maxResponseTokens - AppSettings.responseTokensStep
@@ -343,7 +428,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Temperature: ${settings.temperature.toStringAsFixed(2)}',
+                  strings.temperature(settings.temperature.toStringAsFixed(2)),
                   style: AppText.body(context),
                 ),
                 // Track, thumb and overlay are all monochrome by way of `sliderTheme`.
@@ -362,36 +447,33 @@ class _ModelManagerViewState extends State<ModelManagerView> {
             ),
           ),
           _SwitchRow(
-            label: 'Deterministic Seed',
+            label: strings.deterministicSeed,
             value: settings.useDeterministicSeed,
             onChanged: (value) => settings.useDeterministicSeed = value,
           ),
           _SwitchRow(
-            label: 'Debug Metrics',
+            label: strings.debugMetrics,
             value: settings.debugMetricsEnabled,
             onChanged: (value) => settings.debugMetricsEnabled = value,
           ),
         ],
       ),
-      const _SectionFooter(
-        'Larger context windows increase memory use, first-response latency, device heat, '
-        'and battery consumption, and raise the risk of the app being terminated under '
-        'memory pressure.',
-      ),
+      _SectionFooter(strings.generationFooter),
     ];
   }
 
   // --- section 4 ------------------------------------------------------------------------
 
   List<Widget> _webSearchSection(BuildContext context, AppSettings settings) {
+    final strings = AppStrings.of(context);
     return [
-      const _SectionHeader('Web Search'),
+      _SectionHeader(strings.webSearch),
       _SettingsCard(
         children: [
           _RowShell(
             child: Row(
               children: [
-                Text('Web Search', style: AppText.body(context)),
+                Text(strings.webSearch, style: AppText.body(context)),
                 const SizedBox(width: 16),
                 // Flexible + isExpanded, because 'Automatic for Current Info' is wider than
                 // the row has to spare on a small phone at large text scale.
@@ -399,19 +481,19 @@ class _ModelManagerViewState extends State<ModelManagerView> {
                   child: _Dropdown<WebSearchMode>(
                     isExpanded: true,
                     value: settings.webSearchMode,
-                    items: const [
+                    items: [
                       DropdownMenuItem<WebSearchMode>(
                         value: WebSearchMode.off,
-                        child: Text('Off', overflow: TextOverflow.ellipsis),
+                        child: Text(strings.webSearchOff, overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem<WebSearchMode>(
                         value: WebSearchMode.ask,
-                        child: Text('Ask', overflow: TextOverflow.ellipsis),
+                        child: Text(strings.webSearchAsk, overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem<WebSearchMode>(
                         value: WebSearchMode.automatic,
                         child: Text(
-                          'Automatic for Current Info',
+                          strings.webSearchAutomatic,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -427,9 +509,9 @@ class _ModelManagerViewState extends State<ModelManagerView> {
             ),
           ),
           if (settings.hasBraveApiKey) ...[
-            const _LabeledRow('Brave Search API Key', 'Configured'),
+            _LabeledRow(strings.braveApiKey, strings.configured),
             _ActionRow(
-              label: 'Remove Key',
+              label: strings.removeKey,
               destructive: true,
               onTap: () => unawaited(settings.setBraveApiKey(null)),
             ),
@@ -442,7 +524,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
                 style: AppText.body(context),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Brave Search API Key',
+                  hintText: strings.braveApiKey,
                   filled: true,
                   // The page colour, not `thickMaterial`: the field now sits *inside* a
                   // `thickMaterial` card, and a fill matching its own ground would vanish.
@@ -457,7 +539,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
               ),
             ),
             _ActionRow(
-              label: 'Save Key',
+              label: strings.saveKey,
               onTap: _braveApiKeyController.text.trim().isEmpty
                   ? null
                   : () {
@@ -472,13 +554,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
           ],
         ],
       ),
-      const _SectionFooter(
-        'When enabled, a short search query (never your full conversation or files) may be '
-        'sent to a search provider, and public web pages you search for may be downloaded. '
-        'Model reasoning and the final answer always happen on-device. Without a Brave '
-        'Search API key, search falls back automatically to a free, no-key DuckDuckGo '
-        'search. Changes take effect on your next message -- no restart needed.',
-      ),
+      _SectionFooter(strings.webSearchFooter),
     ];
   }
 
@@ -489,13 +565,14 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     // private and there is no public accessor for the decision it makes.
     final isIosSimulator =
         Platform.isIOS && Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
+    final strings = AppStrings.of(context);
     return [
-      const _SectionHeader('Device'),
+      _SectionHeader(strings.device),
       _SettingsCard(
         children: [
           _LabeledRow(
-            'GPU Offload',
-            isIosSimulator ? 'Disabled (Simulator)' : 'Enabled',
+            strings.gpuOffload,
+            isIosSimulator ? strings.gpuDisabledSimulator : strings.enabled,
           ),
         ],
       ),
@@ -509,16 +586,17 @@ class _ModelManagerViewState extends State<ModelManagerView> {
     ModelManagerViewModel viewModel,
   ) {
     final canRun = !viewModel.isBenchmarking && viewModel.selectedFileName != null;
+    final strings = AppStrings.of(context);
 
     return [
-      const _SectionHeader('Benchmark (Debug)'),
+      _SectionHeader(strings.benchmarkDebug),
       _SettingsCard(
         children: [
           _ActionRow(
             icon: viewModel.isBenchmarking ? AppIcons.hourglass : AppIcons.speedometer,
             label: viewModel.isBenchmarking
-                ? 'Running Benchmark…'
-                : 'Run Benchmark Suite',
+                ? strings.runningBenchmark
+                : strings.runBenchmarkSuite,
             onTap: canRun ? () => unawaited(viewModel.runBenchmark()) : null,
           ),
           for (final result in viewModel.benchmarkResults)
@@ -541,11 +619,15 @@ class _ModelManagerViewState extends State<ModelManagerView> {
                     children: [
                       if (result.tokensPerSecond != null)
                         _BenchmarkFigure(
-                          '${result.tokensPerSecond!.toStringAsFixed(1)} tok/s',
+                          strings.tokensPerSecond(result.tokensPerSecond!.toStringAsFixed(1)),
                         ),
                       if (result.firstTokenLatency != null)
                         _BenchmarkFigure(
-                          '${(result.firstTokenLatency!.inMicroseconds / Duration.microsecondsPerSecond).toStringAsFixed(2)}s first token',
+                          strings.firstTokenSeconds(
+                            (result.firstTokenLatency!.inMicroseconds /
+                                    Duration.microsecondsPerSecond)
+                                .toStringAsFixed(2),
+                          ),
                         ),
                       if (result.residentMemoryBytesAfter != null)
                         _BenchmarkFigure(
@@ -560,11 +642,7 @@ class _ModelManagerViewState extends State<ModelManagerView> {
             ),
         ],
       ),
-      const _SectionFooter(
-        'Test performance on a physical device, not the Simulator, which is CPU-only and '
-        'not representative. Results are not stored anywhere -- they exist only for this '
-        'session.',
-      ),
+      _SectionFooter(strings.benchmarkFooter),
     ];
   }
 }
@@ -818,12 +896,12 @@ class _StepperRow extends StatelessWidget {
           IconButton(
             onPressed: onDecrement,
             icon: const Icon(Icons.remove, size: 20),
-            tooltip: 'Decrease',
+            tooltip: AppStrings.of(context).decrease,
           ),
           IconButton(
             onPressed: onIncrement,
             icon: const Icon(Icons.add, size: 20),
-            tooltip: 'Increase',
+            tooltip: AppStrings.of(context).increase,
           ),
         ],
       ),
@@ -925,7 +1003,7 @@ class _InstalledModelRow extends StatelessWidget {
           children: [
             Icon(AppIcons.trash, color: scheme.onError, size: 20),
             const SizedBox(width: 6),
-            Text('Delete', style: TextStyle(color: scheme.onError)),
+            Text(AppStrings.of(context).delete, style: TextStyle(color: scheme.onError)),
           ],
         ),
       ),

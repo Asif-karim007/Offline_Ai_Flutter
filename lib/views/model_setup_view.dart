@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../viewmodels/app_view_model.dart';
 import '../viewmodels/error_text.dart';
 import 'error_banner.dart';
@@ -122,11 +123,10 @@ class _SetupHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Choose a Model', style: AppText.title(context)),
+              Text(AppStrings.of(context).chooseAModel, style: AppText.title(context)),
               const SizedBox(height: 8),
               Text(
-                'Download one to start chatting — it is stored on this device and runs '
-                'entirely on it.',
+                AppStrings.of(context).modelSetupBody,
                 style: AppText.subheadline(context).copyWith(
                   color: AppColors.secondaryLabel(context),
                 ),

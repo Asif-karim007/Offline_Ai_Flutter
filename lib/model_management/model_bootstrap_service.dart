@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
+
 import '../llm/llama_error.dart';
 import '../utilities/logger.dart';
 import 'model_catalog.dart';
@@ -26,8 +28,10 @@ sealed class AppLoadingState {
 
   const factory AppLoadingState.failed(String message) = FailedLoading;
 
-  /// User-visible status text. Verbatim, including the U+2026 ellipsis character — these
-  /// are three-dot ellipses nowhere in either app.
+  /// User-visible status text, in the app's current language. Read at render time, so a
+  /// language switch mid-launch shows up on the next frame. The English is verbatim,
+  /// including the U+2026 ellipsis character — these are three-dot ellipses nowhere in
+  /// either app.
   String get statusText;
 
   bool get isReady => this is _Ready;
@@ -39,49 +43,49 @@ final class _CheckingForModel extends AppLoadingState {
   const _CheckingForModel();
 
   @override
-  String get statusText => 'Checking model…';
+  String get statusText => AppStrings.current.checkingModel;
 }
 
 final class _CopyingModel extends AppLoadingState {
   const _CopyingModel();
 
   @override
-  String get statusText => 'Copying model…';
+  String get statusText => AppStrings.current.copyingModel;
 }
 
 final class _ValidatingModel extends AppLoadingState {
   const _ValidatingModel();
 
   @override
-  String get statusText => 'Validating model…';
+  String get statusText => AppStrings.current.validatingModel;
 }
 
 final class _LoadingModel extends AppLoadingState {
   const _LoadingModel();
 
   @override
-  String get statusText => 'Loading model…';
+  String get statusText => AppStrings.current.loadingModel;
 }
 
 final class _PreparingInferenceEngine extends AppLoadingState {
   const _PreparingInferenceEngine();
 
   @override
-  String get statusText => 'Preparing inference engine…';
+  String get statusText => AppStrings.current.preparingEngine;
 }
 
 final class _NeedsModel extends AppLoadingState {
   const _NeedsModel();
 
   @override
-  String get statusText => 'No model installed';
+  String get statusText => AppStrings.current.noModelInstalled;
 }
 
 final class _Ready extends AppLoadingState {
   const _Ready();
 
   @override
-  String get statusText => 'Ready';
+  String get statusText => AppStrings.current.ready;
 }
 
 final class FailedLoading extends AppLoadingState {

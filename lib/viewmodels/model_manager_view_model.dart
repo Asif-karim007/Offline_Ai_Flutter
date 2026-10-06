@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../agent/benchmark/benchmark_result.dart';
 import '../agent/benchmark/benchmark_runner.dart';
 import '../domain/local_model_info.dart';
+import '../l10n/app_strings.dart';
 import '../llm/chat_engine.dart';
 import '../llm/model_metadata_reader.dart';
 import '../model_management/app_settings.dart';
@@ -133,8 +134,7 @@ class ModelManagerViewModel extends ChangeNotifier {
   /// A second line of defence: the swipe action is already disabled for the active model.
   Future<void> deleteModel(String fileName) async {
     if (fileName == selectedFileName) {
-      _errorMessage =
-          "Can't delete the model that's currently loaded. Switch to another model first.";
+      _errorMessage = AppStrings.current.cannotDeleteActiveModel;
       _notify();
       return;
     }

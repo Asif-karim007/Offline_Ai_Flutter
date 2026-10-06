@@ -1,3 +1,5 @@
+import '../l10n/app_strings.dart';
+
 /// Every failure mode the inference stack can produce.
 ///
 /// Modelled as one class with a [kind] discriminator rather than a sealed hierarchy for two
@@ -104,46 +106,34 @@ class LlamaError implements Exception {
   const LlamaError.unknownNativeError(String underlying)
       : this(LlamaErrorKind.unknownNativeError, detail: underlying);
 
-  /// User-facing text. Carried over verbatim from the Swift app's `LlamaError`.
-  String get errorDescription => switch (kind) {
-        LlamaErrorKind.modelFileMissing =>
-          'The selected model file could not be found. It may have been deleted or moved.',
-        LlamaErrorKind.invalidFileExtension =>
-          "That file isn't a GGUF model. Please choose a file ending in .gguf.",
-        LlamaErrorKind.fileAccessDenied =>
-          "The app doesn't have permission to read that file.",
-        LlamaErrorKind.modelCopyFailed =>
-          "The model file couldn't be copied into the app's storage.",
-        LlamaErrorKind.modelLoadFailed =>
-          'The model failed to load. It may be corrupted or incompatible with this device.',
-        LlamaErrorKind.unsupportedGguf => "This GGUF file isn't a supported model format.",
-        LlamaErrorKind.missingChatTemplate =>
-          "This model doesn't include a usable chat template, so it can't be used for chat yet.",
-        LlamaErrorKind.contextCreationFailed =>
-          "The app couldn't allocate memory to run this model. Try a smaller context length.",
-        LlamaErrorKind.samplerCreationFailed =>
-          "The app couldn't set up text generation for this model.",
-        LlamaErrorKind.tokenizationFailed =>
-          "The app couldn't process this text for the model.",
-        LlamaErrorKind.promptTooLarge =>
-          "This message is too long for the model's context window "
-              '($requiredTokens tokens needed, $availableTokens available).',
-        LlamaErrorKind.decodeFailed =>
-          'The model encountered an internal error while generating a response.',
-        LlamaErrorKind.generationCancelled => 'Generation was stopped.',
-        LlamaErrorKind.outputDecodingFailed =>
-          "The model produced output that couldn't be decoded as text.",
-        LlamaErrorKind.databaseSaveFailed => "Your conversation couldn't be saved.",
-        LlamaErrorKind.insufficientStorage =>
-          "There isn't enough free storage to complete this operation.",
-        LlamaErrorKind.modelNotLoaded => 'No model is currently loaded.',
-        LlamaErrorKind.generationAlreadyInProgress =>
-          'A response is already being generated.',
-        LlamaErrorKind.nativeException =>
-          'The model engine hit an internal error and recovered safely. Please try again.',
-        LlamaErrorKind.unknownNativeError =>
-          'An unexpected error occurred in the model engine.',
-      };
+  /// User-facing text, in the app's current language. The English wording is carried over
+  /// verbatim from the Swift app's `LlamaError`; see `AppStringsEn`.
+  String get errorDescription {
+    final strings = AppStrings.current;
+    return switch (kind) {
+      LlamaErrorKind.modelFileMissing => strings.errorModelFileMissing,
+      LlamaErrorKind.invalidFileExtension => strings.errorInvalidFileExtension,
+      LlamaErrorKind.fileAccessDenied => strings.errorFileAccessDenied,
+      LlamaErrorKind.modelCopyFailed => strings.errorModelCopyFailed,
+      LlamaErrorKind.modelLoadFailed => strings.errorModelLoadFailed,
+      LlamaErrorKind.unsupportedGguf => strings.errorUnsupportedGguf,
+      LlamaErrorKind.missingChatTemplate => strings.errorMissingChatTemplate,
+      LlamaErrorKind.contextCreationFailed => strings.errorContextCreationFailed,
+      LlamaErrorKind.samplerCreationFailed => strings.errorSamplerCreationFailed,
+      LlamaErrorKind.tokenizationFailed => strings.errorTokenizationFailed,
+      LlamaErrorKind.promptTooLarge =>
+        strings.errorPromptTooLarge(requiredTokens, availableTokens),
+      LlamaErrorKind.decodeFailed => strings.errorDecodeFailed,
+      LlamaErrorKind.generationCancelled => strings.errorGenerationCancelled,
+      LlamaErrorKind.outputDecodingFailed => strings.errorOutputDecodingFailed,
+      LlamaErrorKind.databaseSaveFailed => strings.errorDatabaseSaveFailed,
+      LlamaErrorKind.insufficientStorage => strings.errorInsufficientStorage,
+      LlamaErrorKind.modelNotLoaded => strings.errorModelNotLoaded,
+      LlamaErrorKind.generationAlreadyInProgress => strings.errorGenerationAlreadyInProgress,
+      LlamaErrorKind.nativeException => strings.errorNativeException,
+      LlamaErrorKind.unknownNativeError => strings.errorUnknownNative,
+    };
+  }
 
   /// Extra detail intended for debug builds only. Never shown in a release UI.
   String? get developerDetail => switch (kind) {

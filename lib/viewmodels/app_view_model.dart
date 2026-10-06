@@ -48,6 +48,7 @@ class AppViewModel extends ChangeNotifier {
         // the orchestrator is constructed exactly once.
         webSearchServiceProvider: () =>
             _webSearchService(coordinator.webSearchApiKeyProvider),
+        textbookRetriever: coordinator.curriculum,
       ),
       documentManager: documentManager,
       settings: coordinator.settings,

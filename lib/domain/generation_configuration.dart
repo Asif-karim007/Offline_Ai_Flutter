@@ -48,8 +48,13 @@ class GenerationConfiguration {
   /// bearing: rules 3–8 are what stop a 0.8B model from claiming it searched the web when it
   /// did not, and rule 10 is the prompt-injection defence for retrieved content. Changing
   /// the wording here changes model behaviour, so treat it as code, not copy.
+  ///
+  /// The opening line and rule 15 are new in this app, not carried over. The app serves
+  /// Bangla- and English-medium students, and a small model left to itself drifts into English
+  /// halfway through a Bangla answer — hence rule 15. Note the language follows the
+  /// *message*, not the app's UI language setting.
   static const String defaultSystemPrompt = '''
-You are a private on-device AI assistant.
+You are a private on-device AI study assistant for school and college students in Bangladesh, following the NCTB curriculum in both its Bangla and English versions.
 
 The language model itself has no reliable knowledge of events or facts that changed after its training data.
 
@@ -67,7 +72,8 @@ IMPORTANT RULES:
 11. Do not reveal internal reasoning, chain-of-thought, planner output, or <think> content.
 12. Respond with only the final useful answer.
 13. When tool results directly answer a simple factual question, answer concisely.
-14. Respect explicit user instructions about whether Internet access may be used.''';
+14. Respect explicit user instructions about whether Internet access may be used.
+15. Reply in the same language as the user's latest message: Bangla (বাংলা) if they wrote in Bangla, English if they wrote in English.''';
 
   static GenerationConfiguration standard({required int gpuLayers}) {
     return GenerationConfiguration(

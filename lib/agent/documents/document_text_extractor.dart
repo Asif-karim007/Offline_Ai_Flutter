@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'extracted_document.dart';
 
 enum DocumentExtractionErrorKind {
@@ -25,14 +26,14 @@ class DocumentExtractionError implements Exception {
   const DocumentExtractionError.fileAccessDenied()
       : this(DocumentExtractionErrorKind.fileAccessDenied);
 
-  /// User-facing text, verbatim from the Swift `LocalizedError` conformance.
+  /// User-facing text in the app's current language. The English is verbatim from the Swift
+  /// `LocalizedError` conformance.
   String get errorDescription => switch (kind) {
         DocumentExtractionErrorKind.unsupportedFormat =>
-          '"$fileName" isn\'t a supported file type.',
-        DocumentExtractionErrorKind.noExtractableText =>
-          'This PDF does not contain extractable text.',
+          AppStrings.current.errorUnsupportedDocument(fileName ?? ''),
+        DocumentExtractionErrorKind.noExtractableText => AppStrings.current.errorPdfHasNoText,
         DocumentExtractionErrorKind.fileAccessDenied =>
-          'I no longer have access to this file. Please select it again.',
+          AppStrings.current.errorDocumentAccessLost,
       };
 
   @override

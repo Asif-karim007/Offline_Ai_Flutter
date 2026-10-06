@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import 'theme.dart';
 
 /// The inline error strip. Ported from `Views/ErrorView.swift`, whose type is `ErrorBanner`.
@@ -52,7 +53,7 @@ class ErrorBanner extends StatelessWidget {
             if (dismiss != null) ...[
               const SizedBox(width: 10),
               Semantics(
-                label: 'Dismiss error',
+                label: AppStrings.of(context).dismissError,
                 button: true,
                 // Its own transparent Material: the nearest one otherwise is the
                 // Scaffold, and ink paints *into* that Material — i.e. underneath this

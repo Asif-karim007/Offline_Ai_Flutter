@@ -104,3 +104,7 @@ packages/llama_bindings/android/prebuilt/
 # gigabyte and the repo would never recover from one bad commit. See
 # assets/models/README.md.
 assets/models/*.gguf
+
+# Curriculum pipeline working data (PDFs, extracted text, built packs)
+scripts/curriculum/data/
+scripts/curriculum/.venv/

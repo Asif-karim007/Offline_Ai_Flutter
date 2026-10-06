@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../l10n/app_strings.dart';
+import '../utilities/bangla_text.dart';
 import 'agent_router.dart';
 
 /// Trusted, always-current device-local facts a GGUF model has no way to know on its own — a
@@ -61,20 +63,26 @@ abstract final class DeviceContextTool {
   /// today" appears in the *date* phrase list.
   static String formattedAnswer(String query, {DeviceContext? context}) {
     final resolved = context ?? currentContext();
-    final lowered = query.toLowerCase();
-    final wantsDate = AgentRouter.deviceDatePhrases.any(lowered.contains);
-    final wantsTime = AgentRouter.deviceTimePhrases.any(lowered.contains);
+    final lowered = BanglaText.normalize(query.toLowerCase());
+    final wantsDate = AgentRouter.containsAnyPhrase(lowered, AgentRouter.deviceDatePhrases);
+    final wantsTime = AgentRouter.containsAnyPhrase(lowered, AgentRouter.deviceTimePhrases);
 
-    final time = _format(() => DateFormat.jm(resolved.localeName), () => DateFormat.jm('en_US'),
+    // The reply follows the language of the question, not the device: "আজ কত তারিখ?" gets a
+    // Bangla sentence with a Bangla-formatted date even on an English-language phone.
+    final strings = AppStrings.forText(query);
+    final localeName =
+        AppStrings.containsBengaliScript(query) ? strings.intlLocale : resolved.localeName;
+
+    final time = _format(() => DateFormat.jm(localeName), () => DateFormat.jm('en_US'),
         resolved.currentDate);
-    final date = _format(() => DateFormat.yMMMMEEEEd(resolved.localeName),
+    final date = _format(() => DateFormat.yMMMMEEEEd(localeName),
         () => DateFormat.yMMMMEEEEd('en_US'), resolved.currentDate);
 
-    if (wantsTime && wantsDate) return "It's $time on $date.";
-    if (!wantsTime && wantsDate) return 'Today is $date.';
+    if (wantsTime && wantsDate) return strings.replyTimeAndDate(time, date);
+    if (!wantsTime && wantsDate) return strings.replyDate(date);
     // Covers (time-only) and the (neither) fallback — reaching this tool at all means the
     // router matched a time or date phrase, so defaulting to time is safe.
-    return "It's $time.";
+    return strings.replyTime(time);
   }
 
   /// `intl` throws for a locale whose date symbols have not been loaded via

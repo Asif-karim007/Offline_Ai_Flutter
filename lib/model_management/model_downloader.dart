@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../l10n/app_strings.dart';
+
 import '../utilities/logger.dart';
 
 /// One item in a download stream.
@@ -64,9 +66,8 @@ class ModelDownloadException implements Exception {
   /// Verbatim from the Swift `ModelDownloadError`.
   String get errorDescription => switch (kind) {
         ModelDownloadErrorKind.invalidResponse =>
-          'The download server returned an unexpected response.',
-        ModelDownloadErrorKind.serverError =>
-          'The download failed (server returned status $statusCode).',
+          AppStrings.current.errorDownloadInvalidResponse,
+        ModelDownloadErrorKind.serverError => AppStrings.current.errorDownloadServer(statusCode),
       };
 
   @override

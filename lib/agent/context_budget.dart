@@ -9,24 +9,30 @@ class ContextBudget {
     required this.memoryCap,
     required this.documentEvidenceCap,
     required this.webEvidenceCap,
+    required this.textbookEvidenceCap,
   });
 
   final int memoryCap;
   final int documentEvidenceCap;
   final int webEvidenceCap;
 
+  /// Curriculum passages. The largest single cap, because for a study question the textbook
+  /// is the evidence — and Bangla text spends tokens about twice as fast as English.
+  final int textbookEvidenceCap;
+
   /// [allocatedContextLength] should be the model's actually-allocated context
   /// (`ChatEngine.currentAllocatedContextLength`) when available; callers fall back to the
   /// configured `contextLength` before a model has reported its real allocation.
   ///
   /// `toInt()` truncates toward zero, matching Swift's `Int(Double)` conversion. At a 4096
-  /// context that is 491 / 819 / 819.
+  /// context that is 491 / 819 / 819 / 1024.
   static ContextBudget standard({required int allocatedContextLength}) {
     final base = allocatedContextLength > 0 ? allocatedContextLength : 0;
     return ContextBudget(
       memoryCap: (base * 0.12).toInt(),
       documentEvidenceCap: (base * 0.20).toInt(),
       webEvidenceCap: (base * 0.20).toInt(),
+      textbookEvidenceCap: (base * 0.25).toInt(),
     );
   }
 
@@ -35,8 +41,10 @@ class ContextBudget {
       other is ContextBudget &&
       other.memoryCap == memoryCap &&
       other.documentEvidenceCap == documentEvidenceCap &&
-      other.webEvidenceCap == webEvidenceCap;
+      other.webEvidenceCap == webEvidenceCap &&
+      other.textbookEvidenceCap == textbookEvidenceCap;
 
   @override
-  int get hashCode => Object.hash(memoryCap, documentEvidenceCap, webEvidenceCap);
+  int get hashCode =>
+      Object.hash(memoryCap, documentEvidenceCap, webEvidenceCap, textbookEvidenceCap);
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../persistence/conversation.dart';
 import '../viewmodels/sidebar_view_model.dart';
 import 'theme.dart';
@@ -81,24 +82,23 @@ class _SidebarViewState extends State<SidebarView> {
   }
 
   Future<void> _confirmDeleteAll(SidebarViewModel viewModel) async {
+    final strings = AppStrings.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete all conversations?'),
-        content: const Text(
-          "This permanently deletes every saved conversation. This can't be undone.",
-        ),
+        title: Text(strings.deleteAllTitle),
+        content: Text(strings.deleteAllBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(strings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete All'),
+            child: Text(strings.deleteAll),
           ),
         ],
       ),
@@ -112,25 +112,26 @@ class _SidebarViewState extends State<SidebarView> {
     SidebarViewModel viewModel,
     ConversationSummary conversation,
   ) async {
+    final strings = AppStrings.of(context);
     final controller = TextEditingController(text: conversation.title);
     final title = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rename Conversation'),
+        title: Text(strings.renameConversation),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Title'),
+          decoration: InputDecoration(hintText: strings.titleHint),
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(strings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Rename'),
+            child: Text(strings.rename),
           ),
         ],
       ),
@@ -154,6 +155,7 @@ class _SidebarViewState extends State<SidebarView> {
     if (overlay == null) {
       return;
     }
+    final strings = AppStrings.of(context);
     final action = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -161,13 +163,13 @@ class _SidebarViewState extends State<SidebarView> {
         Offset.zero & overlay.size,
       ),
       items: [
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'rename',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(AppIcons.pencil),
-            title: Text('Rename'),
+            leading: const Icon(AppIcons.pencil),
+            title: Text(strings.rename),
           ),
         ),
         PopupMenuItem<String>(
@@ -180,7 +182,7 @@ class _SidebarViewState extends State<SidebarView> {
               color: Theme.of(context).colorScheme.error,
             ),
             title: Text(
-              'Delete',
+              strings.delete,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -198,6 +200,7 @@ class _SidebarViewState extends State<SidebarView> {
   /// The search capsule, and — because the pane no longer has an app bar to hang it from —
   /// the overflow menu that carries "Delete All History".
   Widget _buildSearchBar(BuildContext context, SidebarViewModel viewModel) {
+    final strings = AppStrings.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       child: Row(
@@ -209,7 +212,7 @@ class _SidebarViewState extends State<SidebarView> {
               textInputAction: TextInputAction.search,
               style: AppText.body(context),
               decoration: InputDecoration(
-                hintText: 'Search',
+                hintText: strings.search,
                 isDense: true,
                 filled: true,
                 fillColor: AppColors.thickMaterial(context),
@@ -232,7 +235,7 @@ class _SidebarViewState extends State<SidebarView> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(AppIcons.ellipsisCircle),
-            tooltip: 'More',
+            tooltip: strings.more,
             onSelected: (_) => unawaited(_confirmDeleteAll(viewModel)),
             itemBuilder: (context) => [
               PopupMenuItem<String>(
@@ -245,7 +248,7 @@ class _SidebarViewState extends State<SidebarView> {
                     color: Theme.of(context).colorScheme.error,
                   ),
                   title: Text(
-                    'Delete All History',
+                    strings.deleteAllHistory,
                     style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
@@ -267,7 +270,7 @@ class _SidebarViewState extends State<SidebarView> {
         minLeadingWidth: 0,
         leading: const Icon(AppIcons.squareAndPencil, size: 20),
         title: Text(
-          'New chat',
+          AppStrings.of(context).newChatRow,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: AppText.body(context),
@@ -294,7 +297,7 @@ class _SidebarViewState extends State<SidebarView> {
               minLeadingWidth: 0,
               leading: const Icon(AppIcons.gearshape, size: 20),
               title: Text(
-                'Settings & Models',
+                AppStrings.of(context).settingsAndModels,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.body(context),
@@ -316,7 +319,7 @@ class _SidebarViewState extends State<SidebarView> {
     // trip `markNeedsBuild` on the `TextField` that is currently building.
     final all = viewModel.conversations;
     final filtered = viewModel.filteredConversations;
-    final items = _groupByDate(filtered);
+    final items = _groupByDate(filtered, AppStrings.of(context));
 
     return Scaffold(
       backgroundColor: AppColors.sidebar(context),
@@ -371,12 +374,12 @@ class _SidebarViewState extends State<SidebarView> {
 /// timestamp the sidebar has, and it is the one the list is already sorted by.
 enum _DateGroup { today, yesterday, previousWeek, previousMonth, older }
 
-String _labelForGroup(_DateGroup group) => switch (group) {
-      _DateGroup.today => 'Today',
-      _DateGroup.yesterday => 'Yesterday',
-      _DateGroup.previousWeek => 'Previous 7 Days',
-      _DateGroup.previousMonth => 'Previous 30 Days',
-      _DateGroup.older => 'Older',
+String _labelForGroup(_DateGroup group, AppStrings strings) => switch (group) {
+      _DateGroup.today => strings.today,
+      _DateGroup.yesterday => strings.yesterday,
+      _DateGroup.previousWeek => strings.previous7Days,
+      _DateGroup.previousMonth => strings.previous30Days,
+      _DateGroup.older => strings.older,
     };
 
 /// Compared by calendar day rather than by elapsed hours: something written at 23:50 is
@@ -402,7 +405,10 @@ _DateGroup _groupFor(DateTime timestamp, DateTime now) {
 
 /// Flattens the list into headers and rows. Order within a bucket is the order the
 /// repository returned — newest activity first — and is never re-sorted here.
-List<_SidebarItem> _groupByDate(List<ConversationSummary> conversations) {
+List<_SidebarItem> _groupByDate(
+  List<ConversationSummary> conversations,
+  AppStrings strings,
+) {
   final now = DateTime.now();
   final buckets = <_DateGroup, List<ConversationSummary>>{};
   for (final conversation in conversations) {
@@ -420,7 +426,7 @@ List<_SidebarItem> _groupByDate(List<ConversationSummary> conversations) {
     if (bucket == null || bucket.isEmpty) {
       continue;
     }
-    items.add(_SectionHeaderItem(_labelForGroup(group)));
+    items.add(_SectionHeaderItem(_labelForGroup(group, strings)));
     for (final conversation in bucket) {
       items.add(_ConversationItem(conversation));
     }
@@ -473,9 +479,10 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = hasAnyConversations ? 'No Matches' : 'No Conversations Yet';
+    final strings = AppStrings.of(context);
+    final title = hasAnyConversations ? strings.noMatches : strings.noConversationsYet;
     final description =
-        hasAnyConversations ? 'Try a different search.' : 'Start a new chat to begin.';
+        hasAnyConversations ? strings.tryDifferentSearch : strings.startNewChatToBegin;
     final icon = hasAnyConversations
         ? AppIcons.magnifyingglass
         : AppIcons.bubbleLeftAndBubbleRight;
@@ -557,7 +564,7 @@ class _ConversationRow extends StatelessWidget {
               children: [
                 Icon(AppIcons.trash, color: scheme.onError, size: 20),
                 const SizedBox(width: 6),
-                Text('Delete', style: TextStyle(color: scheme.onError)),
+                Text(AppStrings.of(context).delete, style: TextStyle(color: scheme.onError)),
               ],
             ),
           ),

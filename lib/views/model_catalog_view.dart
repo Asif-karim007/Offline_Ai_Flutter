@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../model_management/model_catalog.dart';
 import '../model_management/model_store.dart';
 import '../utilities/file_size_formatter.dart';
@@ -119,6 +120,7 @@ class _ModelCatalogViewState extends State<ModelCatalogView> {
     final header = widget.header;
     final failure = state is DownloadFailed ? state : null;
     final downloading = state is Downloading ? state : null;
+    final strings = AppStrings.of(context);
 
     return ListView(
       // Bottom inset only: the header owns the top spacing, and hosts that add an app bar
@@ -136,7 +138,7 @@ class _ModelCatalogViewState extends State<ModelCatalogView> {
             ),
           ),
         ],
-        const _SectionHeader('Available Models'),
+        _SectionHeader(strings.availableModels),
         for (final model in ModelCatalog.chatModels)
           Padding(
             // The key goes here, on the widget the list actually sees. On `_CatalogRow` it
@@ -158,10 +160,7 @@ class _ModelCatalogViewState extends State<ModelCatalogView> {
               onCancel: viewModel.cancelDownload,
             ),
           ),
-        const _CatalogFooter(
-          'Models are fetched from Hugging Face, so the download itself needs a connection. '
-          'Once a model is on the device, chatting works fully offline.',
-        ),
+        _CatalogFooter(strings.catalogFooter),
       ],
     );
   }
@@ -229,7 +228,7 @@ class _CatalogRow extends StatelessWidget {
                     // `filledButtonTheme` — no local override.
                     FilledButton(
                       onPressed: isDownloadDisabled ? null : onDownload,
-                      child: const Text('Download'),
+                      child: Text(AppStrings.of(context).download),
                     ),
                 ],
               ],
@@ -253,10 +252,11 @@ class _Details extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     final contextLength = model.contextLength;
     final metadata = <String>[
       FileSizeFormatter.string(bytes: model.downloadSizeBytes),
-      if (contextLength != null) _contextLengthLabel(contextLength),
+      if (contextLength != null) strings.contextTokens(_contextLengthAmount(contextLength)),
       model.license,
     ].join(' · ');
 
@@ -293,14 +293,14 @@ class _Details extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(model.note, style: mutedCaption),
+        Text(strings.catalogNote(model.id, model.note), style: mutedCaption),
         // Deliberately a caption and not a filter: a model that will not fit is still
         // offered, because the RAM figure is a floor from the model card rather than a
         // measurement of what this device can actually load.
         if (!fitsInMemory) ...[
           const SizedBox(height: 4),
           Text(
-            'Needs ${_memoryRequirementLabel(model.minimumDeviceMemoryBytes)} RAM',
+            strings.needsRam(_memoryRequirementLabel(model.minimumDeviceMemoryBytes)),
             style: mutedCaption,
           ),
         ],
@@ -324,7 +324,7 @@ class _RecommendedBadge extends StatelessWidget {
         shape: const StadiumBorder(),
       ),
       child: Text(
-        'Recommended',
+        AppStrings.of(context).recommended,
         style: AppText.caption2(context).copyWith(
           fontWeight: FontWeight.w600,
           color: AppColors.secondaryLabel(context),
@@ -354,7 +354,7 @@ class _InstalledLabel extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              'Installed',
+              AppStrings.of(context).installed,
               style: AppText.footnote(context).copyWith(color: color),
             ),
           ],
@@ -373,8 +373,10 @@ class _DownloadProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = state.isDeterminate
-        ? '${FileSizeFormatter.string(bytes: state.bytesWritten)} of '
-            '${FileSizeFormatter.string(bytes: state.totalBytes)}'
+        ? AppStrings.of(context).downloadProgress(
+            FileSizeFormatter.string(bytes: state.bytesWritten),
+            FileSizeFormatter.string(bytes: state.totalBytes),
+          )
         : FileSizeFormatter.string(bytes: state.bytesWritten);
 
     return Column(
@@ -416,7 +418,7 @@ class _DownloadProgress extends StatelessWidget {
                 foregroundColor: Theme.of(context).colorScheme.error,
                 textStyle: AppText.footnote(context),
               ),
-              child: const Text('Cancel'),
+              child: Text(AppStrings.of(context).cancel),
             ),
           ],
         ),
@@ -469,20 +471,20 @@ class _CatalogFooter extends StatelessWidget {
   }
 }
 
-/// `262144` → `"262K context"`.
+/// `262144` → `"262K"`, the number half of `"262K context"` ([AppStrings.contextTokens]).
 ///
 /// Thousands, not kibi-anything: context lengths are quoted in round decimal thousands on
 /// every model card, and "256K" for 262144 would be a different number than the one the
 /// catalog records.
-String _contextLengthLabel(int tokens) {
+String _contextLengthAmount(int tokens) {
   if (tokens < 1000) {
-    return '$tokens context';
+    return '$tokens';
   }
   final thousands = tokens / 1000;
   final rendered = thousands >= 100 || thousands == thousands.roundToDouble()
       ? thousands.round().toString()
       : thousands.toStringAsFixed(1);
-  return '${rendered}K context';
+  return '${rendered}K';
 }
 
 /// `8589934592` → `"8 GB"`.

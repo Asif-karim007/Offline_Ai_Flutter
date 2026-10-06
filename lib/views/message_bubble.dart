@@ -4,6 +4,7 @@ import '../agent/response_provenance.dart';
 import '../agent/source_reference.dart';
 import '../domain/chat_message.dart';
 import '../domain/chat_role.dart';
+import '../l10n/app_strings.dart';
 import 'theme.dart';
 
 /// One message row.
@@ -38,7 +39,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: _isUser ? 'You' : 'Assistant',
+      label: _isUser ? AppStrings.of(context).you : AppStrings.of(context).assistant,
       value: message.content,
       container: true,
       child: _isUser ? _buildUser(context) : _buildAssistant(context),
@@ -83,7 +84,7 @@ class MessageBubble extends StatelessWidget {
                     const SizedBox(height: 6),
                     _CaptionLabel(
                       icon: AppIcons.exclamationmarkTriangle,
-                      text: message.errorDescription ?? 'Failed to send',
+                      text: message.errorDescription ?? AppStrings.of(context).failedToSend,
                       color: Theme.of(context).colorScheme.error,
                     ),
                   ],
@@ -120,7 +121,7 @@ class MessageBubble extends StatelessWidget {
           const SizedBox(height: 8),
           _CaptionLabel(
             icon: AppIcons.stopCircle,
-            text: 'Stopped',
+            text: AppStrings.of(context).stopped,
             color: AppColors.secondaryLabel(context),
           ),
         ],
@@ -128,7 +129,7 @@ class MessageBubble extends StatelessWidget {
           const SizedBox(height: 8),
           _CaptionLabel(
             icon: AppIcons.exclamationmarkTriangle,
-            text: message.errorDescription ?? 'Generation failed',
+            text: message.errorDescription ?? AppStrings.of(context).generationFailed,
             color: scheme.error,
           ),
         ],
@@ -171,7 +172,7 @@ class _AssistantActions extends StatelessWidget {
         if (onCopy != null)
           _IconAction(
             icon: AppIcons.docOnDoc,
-            tooltip: 'Copy',
+            tooltip: AppStrings.of(context).copy,
             color: muted,
             onPressed: onCopy,
           ),
@@ -259,7 +260,7 @@ class _ThinkingIndicatorState extends State<_ThinkingIndicator>
     final colour = AppColors.secondaryLabel(context);
 
     return Semantics(
-      label: 'Thinking',
+      label: AppStrings.of(context).thinkingLabel,
       liveRegion: true,
       child: SizedBox(
         height: 24,
@@ -346,7 +347,7 @@ class _SourcesFooter extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Sources',
+            AppStrings.of(context).sources,
             style: AppText.caption2(context).copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -358,13 +359,13 @@ class _SourcesFooter extends StatelessWidget {
               padding: const EdgeInsets.only(top: 5),
               child: source.url != null
                   ? SelectableText(
-                      _label(source),
+                      _label(source, AppStrings.of(context)),
                       style: AppText.caption(context).copyWith(
                         color: AppColors.link(context),
                       ),
                     )
                   : Text(
-                      _label(source),
+                      _label(source, AppStrings.of(context)),
                       style: AppText.caption(context).copyWith(
                         color: AppColors.secondaryLabel(context),
                       ),
@@ -375,9 +376,9 @@ class _SourcesFooter extends StatelessWidget {
     );
   }
 
-  static String _label(SourceReference source) {
+  static String _label(SourceReference source, AppStrings strings) {
     final base = '[${source.id}] ${source.title}';
     final page = source.page;
-    return page == null ? base : '$base — page $page';
+    return page == null ? base : strings.sourceWithPage(base, page);
   }
 }
