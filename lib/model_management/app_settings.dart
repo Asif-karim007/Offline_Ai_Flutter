@@ -35,8 +35,12 @@ class AppSettings extends ChangeNotifier {
         _contextLengthPreset =
             _readIntWithZeroAsUnset(_preferences, _Keys.contextLengthPreset, 4096),
         _maxResponseTokens =
-            _readIntWithZeroAsUnset(_preferences, _Keys.maxResponseTokens, 384),
-        _temperature = _preferences.getDouble(_Keys.temperature) ?? 0.7,
+            // 768, not the Swift app's 384: a step-by-step explanation runs 500–800 tokens,
+            // and at 384 most study answers on-device stopped mid-sentence. The answer streams,
+            // so a longer cap does not delay the first word.
+            _readIntWithZeroAsUnset(_preferences, _Keys.maxResponseTokens, 768),
+        // See `GenerationConfiguration.standard` for why study answers run cooler than chat.
+        _temperature = _preferences.getDouble(_Keys.temperature) ?? 0.3,
         _useDeterministicSeed =
             _preferences.getBool(_Keys.useDeterministicSeed) ?? false,
         _debugMetricsEnabled = _preferences.getBool(_Keys.debugMetricsEnabled) ?? false,

@@ -117,6 +117,28 @@ LC_EXPORT uint32_t lc_n_ctx(void *ctx);
 /// strategy's reset, and the same call that switching conversations makes.
 LC_EXPORT void lc_memory_clear(void *ctx);
 
+/// Sequence-0 state snapshots: the KV cache — and for hybrid models such as Qwen3.5 the
+/// recurrent state — after a prompt prefix has been decoded. Restoring one replaces decoding
+/// that prefix again. A snapshot rather than trimming the cache back with `seq_rm`, because a
+/// recurrent state cannot be rolled back to an earlier position; a snapshot works for every
+/// architecture.
+///
+/// `lc_state_size` is the byte size a snapshot needs now (0 when there is nothing to save).
+/// `lc_state_save` / `lc_state_restore` return the bytes written / read, 0 on failure.
+/// Sets the generation and prompt-processing thread counts separately. On a measured
+/// Snapdragon 732G, reading a prompt kept getting faster up to all 8 cores (9.8 vs 8.3 tok/s
+/// at 6) while generation barely moved (5.1 vs 4.8) — so prompts use every core, and
+/// generation leaves two free for the UI that is streaming the answer.
+LC_EXPORT void lc_set_threads(void *ctx, int32_t n_threads, int32_t n_threads_batch);
+
+LC_EXPORT size_t lc_state_size(void *ctx);
+LC_EXPORT size_t lc_state_save(void *ctx, uint8_t *dst, size_t size, char *err, int32_t err_len);
+LC_EXPORT size_t lc_state_restore(void *ctx,
+                                  const uint8_t *src,
+                                  size_t size,
+                                  char *err,
+                                  int32_t err_len);
+
 // ---------------------------------------------------------------------------
 // Batch
 // ---------------------------------------------------------------------------

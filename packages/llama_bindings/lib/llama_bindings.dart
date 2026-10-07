@@ -8,4 +8,4 @@ library llama_bindings;
 export 'src/cancellation_flag.dart' show CancellationFlag;
 export 'src/llama_ffi.dart' show LlamaFfi, lcDecodeException, lcSampleError;
 export 'src/llama_library.dart' show isLlamaLibraryAvailable;
-export 'src/llama_native.dart' show LlamaNative, LlamaNativeException;
+export 'src/llama_native.dart' show LlamaNative, LlamaNativeException, StateSnapshot;

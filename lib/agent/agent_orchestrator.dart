@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import '../domain/chat_message.dart';
+import '../domain/chat_role.dart';
 import '../domain/generation_configuration.dart';
 import '../domain/generation_metrics.dart';
 import '../l10n/app_strings.dart';
@@ -309,7 +311,8 @@ class AgentOrchestrator {
     if (wantsTextbooks) {
       emit(const AgentSearchingTextbooksEvent());
       final start = DateTime.now();
-      textbookExcerpts = List.of(await textbookRetriever.search(request.userMessage));
+      textbookExcerpts =
+          List.of(await textbookRetriever.search(_textbookQuery(request)));
       documentRetrievalDuration = DateTime.now().difference(start);
       _log('[Textbook] excerpts=${textbookExcerpts.length}');
     }
@@ -451,6 +454,7 @@ class AgentOrchestrator {
     );
     assembledConfiguration = assembledConfiguration.copyWith(
       systemPrompt: assembledConfiguration.systemPrompt +
+          _replyLanguageLine(request.userMessage) +
           _transparencyNote(
             wantsWeb: wantsWeb,
             webAllowed: webAllowed,
@@ -533,7 +537,7 @@ class AgentOrchestrator {
 
     final subscription = _chatEngine
         .generate(
-      messages: request.recentMessages,
+      messages: _historyForPrompt(request.recentMessages),
       configuration: assembledConfiguration,
     )
         .listen(
@@ -588,6 +592,51 @@ class AgentOrchestrator {
       _WebEvidenceUnavailableReason.retrievalFailed => strings.replyWebRetrievalFailed,
     };
   }
+
+  /// The conversation as the model re-reads it: earlier *answers* cut to their opening.
+  ///
+  /// Every follow-up re-decodes the whole history, and a full step-by-step answer is 300–700
+  /// tokens — on a mid-range phone, a minute of waiting per follow-up spent re-reading text
+  /// the model wrote itself. The opening of an answer carries what a follow-up refers to
+  /// ("explain it more simply", "quiz me on this"); the student's own messages and the screen
+  /// keep everything in full.
+  static List<ChatMessage> _historyForPrompt(List<ChatMessage> messages) => [
+        for (final message in messages)
+          if (message.role == ChatRole.assistant &&
+              message.content.length > _historyAnswerChars)
+            message.copyWith(
+              content: '${message.content.substring(0, _historyAnswerChars)}…',
+            )
+          else
+            message,
+      ];
+
+  static const int _historyAnswerChars = 600;
+
+  /// What to look up in the textbooks: the message, plus the student's previous question.
+  ///
+  /// Students study in follow-ups — "explain it more simply", "give me an example", "is my
+  /// answer right?" — and a follow-up's own words say nothing about the topic. Searched
+  /// alone, "আরো সহজ করে বুঝিয়ে দাও" about Newton's third law came back with pages from the
+  /// math and religion books. The earlier question carries the topic; the current one, listed
+  /// first, still decides when the student has moved on.
+  static String _textbookQuery(AgentRequest request) {
+    final earlierQuestions = request.recentMessages
+        .where((message) => message.role == ChatRole.user)
+        .map((message) => message.content)
+        .toList();
+    // The last user message is the current one; the one before it is the previous question.
+    if (earlierQuestions.length < 2) return request.userMessage;
+    return '${request.userMessage}\n${earlierQuestions[earlierQuestions.length - 2]}';
+  }
+
+  /// Decided here from the message's script rather than left to the model: a 2B model told
+  /// only "reply in the user's language" answered an English question that was mostly math
+  /// symbols in Bangla.
+  static String _replyLanguageLine(String userMessage) =>
+      AppStrings.containsBengaliScript(userMessage)
+          ? '\n\nREPLY_LANGUAGE=Bangla. The user wrote in Bangla: reply in Bangla (বাংলায় উত্তর দাও).'
+          : '\n\nREPLY_LANGUAGE=English. The user wrote in English: reply in English.';
 
   static String _transparencyNote({
     required bool wantsWeb,

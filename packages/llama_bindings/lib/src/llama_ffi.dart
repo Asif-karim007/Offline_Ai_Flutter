@@ -42,6 +42,16 @@ typedef _PtrToInt32Dart = int Function(ffi.Pointer<ffi.Void>);
 typedef _PtrToUint32Native = ffi.Uint32 Function(ffi.Pointer<ffi.Void>);
 typedef _PtrToUint32Dart = int Function(ffi.Pointer<ffi.Void>);
 
+typedef _SetThreadsNative = ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int32, ffi.Int32);
+typedef _SetThreadsDart = void Function(ffi.Pointer<ffi.Void>, int, int);
+
+typedef _StateSizeNative = ffi.Size Function(ffi.Pointer<ffi.Void>);
+typedef _StateSizeDart = int Function(ffi.Pointer<ffi.Void>);
+typedef _StateSaveNative = ffi.Size Function(
+    ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, ffi.Size, ffi.Pointer<ffi.Char>, ffi.Int32);
+typedef _StateSaveDart = int Function(
+    ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, int, ffi.Pointer<ffi.Char>, int);
+
 typedef _PtrToUint64Native = ffi.Uint64 Function(ffi.Pointer<ffi.Void>);
 typedef _PtrToUint64Dart = int Function(ffi.Pointer<ffi.Void>);
 
@@ -169,6 +179,10 @@ class LlamaFfi {
         batchClear = lib.lookupFunction<_PtrArgVoidNative, _PtrArgVoidDart>('lc_batch_clear'),
         batchAdd = lib.lookupFunction<_BatchAddNative, _BatchAddDart>('lc_batch_add'),
         decode = lib.lookupFunction<_DecodeNative, _DecodeDart>('lc_decode'),
+        setThreads = lib.lookupFunction<_SetThreadsNative, _SetThreadsDart>('lc_set_threads'),
+        stateSize = lib.lookupFunction<_StateSizeNative, _StateSizeDart>('lc_state_size'),
+        stateSave = lib.lookupFunction<_StateSaveNative, _StateSaveDart>('lc_state_save'),
+        stateRestore = lib.lookupFunction<_StateSaveNative, _StateSaveDart>('lc_state_restore'),
         tokenize = lib.lookupFunction<_TokenizeNative, _TokenizeDart>('lc_tokenize'),
         tokenToPiece =
             lib.lookupFunction<_TokenToPieceNative, _TokenToPieceDart>('lc_token_to_piece'),
@@ -228,6 +242,10 @@ class LlamaFfi {
   final _PtrArgVoidDart batchClear;
   final _BatchAddDart batchAdd;
   final _DecodeDart decode;
+  final _SetThreadsDart setThreads;
+  final _StateSizeDart stateSize;
+  final _StateSaveDart stateSave;
+  final _StateSaveDart stateRestore;
 
   final _TokenizeDart tokenize;
   final _TokenToPieceDart tokenToPiece;

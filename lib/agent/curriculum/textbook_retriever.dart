@@ -32,5 +32,8 @@ abstract interface class TextbookRetriever {
   /// The best-matching passages for [query], at most [limit], most relevant first. Empty when
   /// no pack is active, the pack is still being prepared, or nothing matches. Never throws:
   /// a broken pack must degrade to "no textbook evidence", not to a failed answer.
+  ///
+  /// Two passages by default: each one is seconds of reading for an on-device model, and a
+  /// third rarely adds what the first two lack.
   Future<List<TextbookExcerpt>> search(String query, {int limit});
 }

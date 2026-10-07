@@ -229,15 +229,18 @@ class CurriculumService extends ChangeNotifier implements TextbookRetriever {
   // --- TextbookRetriever --------------------------------------------------------------------
 
   @override
-  Future<List<TextbookExcerpt>> search(String query, {int limit = 3}) async {
+  Future<List<TextbookExcerpt>> search(String query, {int limit = 2}) async {
     try {
       // The first question after launch may arrive while the index is still opening.
       await _indexOpening;
       final index = _index;
       if (index == null || _indexPackId != activePackId) return const [];
       return await index.search(query, limit: limit);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // Still never thrown at the agent — but no longer invisible either. A failure here
+      // once made every search come back empty on Android with nothing in any log.
       AppLog.ui('curriculum.searchFailed');
+      debugPrint('curriculum search failed: $error\n$stackTrace');
       return const [];
     }
   }

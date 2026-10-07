@@ -220,6 +220,32 @@ abstract final class ModelCatalog {
     note: 'Text-only use of a multimodal model. Weights alone are 4.54 GB before KV cache.',
   );
 
+  /// Google's Gemma 4 E2B (April 2026, Apache-2.0) in Google's own quantisation-aware 4-bit
+  /// build — the app's recommended single model.
+  ///
+  /// Chosen on device (Redmi Note 10 Pro, 8 GB) against Qwen3.5-2B, Gemma 3n E2B and
+  /// Unsloth's 2-bit "mobile" Gemma 4 build, over twelve study questions in Bangla and English
+  /// across physics, biology, chemistry, history, grammar and math. It was the only one to
+  /// write fluent Bangla *and* get the math right; Qwen 2B invented Bangla words, and the
+  /// 2-bit Gemma 4 build mixed stray Chinese, Arabic and Hindi characters into both
+  /// languages. First word in 32–56 s for a new question on that phone.
+  ///
+  /// Its chat format (`<|turn>`) is newer than the pinned llama.cpp's template table;
+  /// `LlamaWorker` formats it itself.
+  static const CatalogModel gemma4E2B = CatalogModel(
+    id: 'gemma-4-e2b-it-qat-q4_0',
+    displayName: 'Gemma-4-E2B',
+    repository: 'google/gemma-4-E2B-it-qat-q4_0-gguf',
+    fileName: 'gemma-4-E2B_q4_0-it.gguf',
+    downloadSizeBytes: 3349516256,
+    license: 'Apache-2.0',
+    promptFormat: PromptFormat.gemma,
+    contextLength: 131072,
+    tier: ModelTier.recommended,
+    minimumDeviceMemoryBytes: 6 * _gibibyte,
+    note: 'Best tested for Bangla and English study answers. Recommended.',
+  );
+
   /// The retrieval-side embedding model.
   ///
   /// The file name is the conventional `<model>-<quant>.gguf` form for this repository.
@@ -243,6 +269,7 @@ abstract final class ModelCatalog {
 
   /// Every entry, in the order they should be presented.
   static const List<CatalogModel> all = [
+    gemma4E2B,
     qwen35Point8B,
     qwen352B,
     qwen354B,

@@ -7,6 +7,7 @@ import '../agent/agent_orchestrator.dart';
 import '../agent/agent_request.dart';
 import '../agent/documents/local_document_manager.dart';
 import '../agent/documents/local_document_reference.dart';
+import '../agent/internal_term_scrubber.dart';
 import '../agent/response_provenance.dart';
 import '../domain/chat_message.dart';
 import '../domain/chat_role.dart';
@@ -730,7 +731,10 @@ class ChatViewModel extends ChangeNotifier {
       GenerationFinishReason.cancelled => MessageStatus.stopped,
     };
     final updated = List<ChatMessage>.of(_messages);
-    updated[index] = updated[index].copyWith(status: status);
+    updated[index] = updated[index].copyWith(
+      status: status,
+      content: InternalTermScrubber.scrub(updated[index].content),
+    );
     _messages = updated;
   }
 

@@ -300,6 +300,60 @@ int32_t lc_decode(void *ctx, void *batch, char *err, int32_t err_len) {
 }
 
 // ---------------------------------------------------------------------------
+// State snapshots
+// ---------------------------------------------------------------------------
+
+void lc_set_threads(void *ctx, int32_t n_threads, int32_t n_threads_batch) {
+    if (ctx == nullptr) {
+        return;
+    }
+    llama_set_n_threads(static_cast<llama_context *>(ctx), n_threads, n_threads_batch);
+}
+
+size_t lc_state_size(void *ctx) {
+    if (ctx == nullptr) {
+        return 0;
+    }
+    try {
+        return llama_state_seq_get_size(static_cast<llama_context *>(ctx), 0);
+    } catch (...) {
+        return 0;
+    }
+}
+
+size_t lc_state_save(void *ctx, uint8_t *dst, size_t size, char *err, int32_t err_len) {
+    if (ctx == nullptr || dst == nullptr) {
+        writeError(err, err_len, "no context or buffer");
+        return 0;
+    }
+    try {
+        return llama_state_seq_get_data(static_cast<llama_context *>(ctx), dst, size, 0);
+    } catch (const std::exception &e) {
+        writeException(err, err_len, e);
+        return 0;
+    } catch (...) {
+        writeUnknownException(err, err_len);
+        return 0;
+    }
+}
+
+size_t lc_state_restore(void *ctx, const uint8_t *src, size_t size, char *err, int32_t err_len) {
+    if (ctx == nullptr || src == nullptr) {
+        writeError(err, err_len, "no context or buffer");
+        return 0;
+    }
+    try {
+        return llama_state_seq_set_data(static_cast<llama_context *>(ctx), src, size, 0);
+    } catch (const std::exception &e) {
+        writeException(err, err_len, e);
+        return 0;
+    } catch (...) {
+        writeUnknownException(err, err_len);
+        return 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Vocabulary
 // ---------------------------------------------------------------------------
 

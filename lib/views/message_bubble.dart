@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../agent/response_provenance.dart';
 import '../agent/source_reference.dart';
@@ -115,7 +116,20 @@ class MessageBubble extends StatelessWidget {
         if (!hasText && message.isStreaming)
           const _ThinkingIndicator()
         else if (hasText)
-          SelectableText(message.content, style: AppText.body(context)),
+          // Rendered, not shown raw: answers are markdown with LaTeX math, and a student
+          // reading `$$S_{20} = \\frac{20}{2}[2(3) + 19 \\times 4]$$` instead of the formula is
+          // being taught the notation of the renderer, not the mathematics. `SelectionArea`
+          // keeps the text selectable, as `SelectableText` made it before.
+          SelectionArea(
+            child: GptMarkdown(
+              message.content,
+              style: AppText.body(context),
+              // Qwen writes math as `$...$` / `$$...$$`, which the renderer leaves as text
+              // unless told otherwise. Safe here: students in Bangladesh write money as
+              // টাকা / ৳, so a stray `$` price being read as math is the rare case.
+              useDollarSignsForLatex: true,
+            ),
+          ),
 
         if (message.status == MessageStatus.stopped) ...[
           const SizedBox(height: 8),

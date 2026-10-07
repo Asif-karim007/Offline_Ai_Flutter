@@ -68,12 +68,20 @@ class CurriculumIndex {
 
   Future<void> close() => _db.close();
 
-  /// The best passages for [query], most relevant first.
-  Future<List<TextbookExcerpt>> search(String query, {int limit = 3}) async {
+  /// The best passages for [query], most relevant first, each cut down to its most relevant
+  /// sentences.
+  ///
+  /// Kept deliberately strict, because every passage handed to an on-device model costs the
+  /// student seconds of waiting and a weak one actively misleads it: a passage must score at
+  /// least [_relativeFloor] of the best one, and a question with three or more key words must
+  /// match at least two of them — one shared word ("উদাহরণ", "example") is a coincidence, not
+  /// a topic.
+  Future<List<TextbookExcerpt>> search(String query, {int limit = 2}) async {
     final terms = queryTerms(query);
     if (terms.isEmpty) {
       return const [];
     }
+    final requiredMatches = terms.length >= 3 ? 2 : 1;
 
     final rows = await _db.rawQuery(
       "SELECT docid, matchinfo(chunks_fts, 'pcnalx') AS info "
@@ -86,18 +94,25 @@ class CurriculumIndex {
 
     final scored = <(int, double)>[
       for (final row in rows)
-        (row['docid']! as int, bm25FromMatchInfo(row['info']! as Uint8List)),
+        if (matchedPhrases(row['info']! as Uint8List) >= requiredMatches)
+          (row['docid']! as int, bm25FromMatchInfo(row['info']! as Uint8List)),
     ]..sort((a, b) => b.$2.compareTo(a.$2));
-
-    final best = scored.take(limit).where((entry) => entry.$2 > 0).toList();
-    if (best.isEmpty) {
+    if (scored.isEmpty || scored.first.$2 <= 0) {
       return const [];
     }
 
+    final floor = scored.first.$2 * _relativeFloor;
+    final best = scored.take(limit).where((entry) => entry.$2 >= floor).toList();
+
     final ids = best.map((entry) => entry.$1).toList();
+    // Each hit together with the chunk that follows it in the same book: the pipeline cuts
+    // chunks wherever the length runs out, so a heading ("নিউটনের তৃতীয় সূত্র:") is often
+    // the last line of one chunk and the definition it introduces the first of the next.
     final passages = await _db.rawQuery(
-      'SELECT c.id AS id, c.page_start AS page, c.text AS text, b.title AS title '
+      'SELECT c.id AS id, c.page_start AS page, b.title AS title, '
+      "c.text || ' ' || COALESCE(n.text, '') AS text "
       'FROM chunks c JOIN books b ON b.id = c.book_id '
+      'LEFT JOIN chunks n ON n.id = c.id + 1 AND n.book_id = c.book_id '
       'WHERE c.id IN (${List.filled(ids.length, '?').join(', ')})',
       ids,
     );
@@ -108,9 +123,63 @@ class CurriculumIndex {
           TextbookExcerpt(
             bookTitle: row['title']! as String,
             page: row['page'] as int?,
-            text: row['text']! as String,
+            text: focusedExcerpt(row['text']! as String, terms),
           ),
     ];
+  }
+
+  /// A passage below this fraction of the best score is dropped rather than padded in.
+  static const double _relativeFloor = 0.5;
+
+  /// The excerpt length handed to the model, in characters. About 200 tokens of Bangla.
+  static const int excerptChars = 420;
+
+  /// The run of consecutive sentences in [text] that contains the most query-term hits and
+  /// fits in [excerptChars] — so the model reads the two sentences that define the term, not
+  /// the exercise list printed after them on the same page.
+  static String focusedExcerpt(String text, List<String> ftsTerms) {
+    if (text.length <= excerptChars) return text;
+    final stems = [
+      for (final term in ftsTerms) term.replaceAll('"', '').replaceAll('*', ''),
+    ];
+    final sentences = RegExp(r'[^।?!.\n]+[।?!.]?')
+        .allMatches(text)
+        .map((match) => match.group(0)!.trim())
+        .where((sentence) => sentence.isNotEmpty)
+        .toList();
+    if (sentences.isEmpty) return text.substring(0, excerptChars);
+    int hits(String sentence) {
+      final lowered = BanglaText.normalize(sentence.toLowerCase());
+      return stems.where(lowered.contains).length;
+    }
+
+    var bestStart = 0;
+    var bestEnd = 0;
+    var bestHits = -1;
+    for (var start = 0; start < sentences.length; start++) {
+      var length = 0;
+      var total = 0;
+      var end = start;
+      while (end < sentences.length && length + sentences[end].length + 1 <= excerptChars) {
+        length += sentences[end].length + 1;
+        total += hits(sentences[end]);
+        end++;
+      }
+      if (end == start) continue; // a single sentence longer than the budget
+      // A window that stops on a colon stops just before what the colon introduces —
+      // "সূত্রটি এ রকম:" ("the law is as follows:") with the law itself cut off.
+      if (sentences[end - 1].endsWith(':') || sentences[end - 1].endsWith('ঃ')) {
+        total -= 1;
+      }
+      if (total > bestHits) {
+        bestHits = total;
+        bestStart = start;
+        bestEnd = end;
+      }
+    }
+    if (bestHits < 0) return '${text.substring(0, excerptChars)}…';
+    final excerpt = sentences.sublist(bestStart, bestEnd).join(' ');
+    return bestEnd < sentences.length ? '$excerpt …' : excerpt;
   }
 
   // --- query construction ------------------------------------------------------------------
@@ -179,12 +248,20 @@ class CurriculumIndex {
     'লিখ', 'দাও', 'দিন', 'করো', 'কর', 'করে', 'আছে', 'হয়', 'হলো', 'হল', 'এবং', 'ও', 'তা', 'এই',
     'সেই', 'এর', 'একটি', 'একটা', 'সম্পর্কে', 'আমাকে', 'আমি', 'তুমি', 'আপনি', 'যে', 'না',
     'থেকে', 'জন্য', 'সাথে', 'দিয়ে', 'আর', 'বা', 'নিয়ে', 'সহজভাবে', 'ব্যাখ্যা',
+    // How a question is asked, not what it is about: "X ও Y এর পার্থক্য লেখো",
+    // "উদাহরণসহ বর্ণনা করো". Matching on these pulled pages from unrelated books.
+    'পার্থক্য', 'উদাহরণ', 'উদাহরণসহ', 'সংজ্ঞা', 'বর্ণনা', 'আলোচনা', 'সংক্ষেপে', 'বিস্তারিত',
+    'আরো', 'আরও', 'সহজ', 'প্রশ্ন', 'উত্তর', 'কুইজ', 'ঠিক', 'সঠিক',
   }.map(BanglaText.normalize).toSet();
 
   static const Set<String> _englishStopwords = {
     'the', 'and', 'what', 'why', 'how', 'who', 'when', 'where', 'which', 'does', 'did',
     'are', 'was', 'were', 'is', 'for', 'with', 'from', 'that', 'this', 'about', 'explain',
     'please', 'tell', 'give', 'can', 'you', 'your', 'me',
+    // How a question is asked, not what it is about ("the difference between X and Y").
+    'difference', 'between', 'define', 'definition', 'meaning', 'mean', 'example', 'examples',
+    'describe', 'discuss', 'write', 'short', 'note', 'simple', 'simply', 'more', 'some',
+    'quiz', 'question', 'questions', 'answer', 'answers', 'end', 'correct', 'right',
   };
 
   // --- scoring -----------------------------------------------------------------------------
@@ -196,11 +273,38 @@ class CurriculumIndex {
   /// in the order p (phrases), c (columns), n (rows), a[c] (average tokens per column),
   /// l[c] (this row's tokens per column), then for every phrase × column the triple
   /// (hits in this row, hits in all rows, rows with a hit).
+  ///
+  /// Read through [ByteData], never `asUint32List`: on Android the blob arrives through the
+  /// platform channel as a *view* into the message buffer, at whatever byte offset it landed,
+  /// and a `Uint32List` view requires a 4-byte-aligned offset. The aligned read threw on the
+  /// phone — and only there; host tests get freshly allocated blobs — so every search
+  /// silently returned nothing. The values are native-endian, which is little-endian on every
+  /// ARM and x86 device this app runs on.
+  /// How many of the query's phrases occur in this row at all.
+  static int matchedPhrases(Uint8List blob) {
+    final bytes = ByteData.sublistView(blob);
+    int info(int index) => bytes.getUint32(index * 4, Endian.little);
+    final phrases = info(0);
+    final columns = info(1);
+    final hitsOffset = 3 + 2 * columns;
+    var matched = 0;
+    for (var phrase = 0; phrase < phrases; phrase++) {
+      for (var column = 0; column < columns; column++) {
+        if (info(hitsOffset + 3 * (phrase * columns + column)) > 0) {
+          matched++;
+          break;
+        }
+      }
+    }
+    return matched;
+  }
+
   static double bm25FromMatchInfo(Uint8List blob) {
-    final info = blob.buffer.asUint32List(blob.offsetInBytes, blob.lengthInBytes ~/ 4);
-    final phrases = info[0];
-    final columns = info[1];
-    final rowCount = info[2];
+    final bytes = ByteData.sublistView(blob);
+    int info(int index) => bytes.getUint32(index * 4, Endian.little);
+    final phrases = info(0);
+    final columns = info(1);
+    final rowCount = info(2);
     const averageLengthOffset = 3;
     final lengthOffset = averageLengthOffset + columns;
     final hitsOffset = lengthOffset + columns;
@@ -209,14 +313,14 @@ class CurriculumIndex {
     for (var phrase = 0; phrase < phrases; phrase++) {
       for (var column = 0; column < columns; column++) {
         final base = hitsOffset + 3 * (phrase * columns + column);
-        final termFrequency = info[base];
+        final termFrequency = info(base);
         if (termFrequency == 0) {
           continue;
         }
-        final documentFrequency = info[base + 2];
+        final documentFrequency = info(base + 2);
         final idf = math.log(1 + (rowCount - documentFrequency + 0.5) / (documentFrequency + 0.5));
-        final averageLength = math.max(1, info[averageLengthOffset + column]);
-        final length = info[lengthOffset + column];
+        final averageLength = math.max(1, info(averageLengthOffset + column));
+        final length = info(lengthOffset + column);
         final normalisation = _k1 * (1 - _b + _b * length / averageLength);
         score += idf * (termFrequency * (_k1 + 1)) / (termFrequency + normalisation);
       }

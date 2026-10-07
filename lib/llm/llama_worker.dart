@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
@@ -109,6 +110,19 @@ class _LlamaWorker {
   ffi.Pointer<ffi.Void> _batch = ffi.nullptr;
 
   String? _chatTemplate;
+
+  /// The model state after decoding [_prefixTokens] — the chat template's opening plus the
+  /// app's fixed system instructions — so the next prompt that starts the same way restores
+  /// it instead of decoding ~900 tokens again. See [_generate].
+  StateSnapshot? _prefixSnapshot;
+  List<int> _prefixTokens = const [];
+
+  /// The background decode of the fixed prefix started right after a model load, so that even
+  /// the first question skips it. Every command that touches the context awaits this first:
+  /// command handlers interleave at their `await`s, and a reset or a generation landing
+  /// mid-warm-up would otherwise decode into a half-built state.
+  Future<void>? _warmUp;
+
   String? _modelPath;
   int _modelFileSizeBytes = 0;
   int _trainedContextLength = 0;
@@ -142,13 +156,20 @@ class _LlamaWorker {
             'allocatedContextLength': _allocatedContextLength,
             'trainedContextLength': _trainedContextLength,
           });
+          final warmUp = _warmPrefix().catchError((Object _) {});
+          _warmUp = warmUp;
+          unawaited(warmUp.whenComplete(() {
+            if (identical(_warmUp, warmUp)) _warmUp = null;
+          }));
 
         case WorkerOp.unload:
+          await _warmUp;
           _requireNotGenerating();
           _freeNativeResources();
           _replyOk(id, const {});
 
         case WorkerOp.reset:
+          await _warmUp;
           _requireNotGenerating();
           if (_context != ffi.nullptr) {
             _native.clearMemory(_context);
@@ -166,6 +187,7 @@ class _LlamaWorker {
           _replyOk(id, {'count': _countTokensForConversation(messages)});
 
         case WorkerOp.generateStructured:
+          await _warmUp;
           final raw = (command['messages']! as List).cast<Map<Object?, Object?>>();
           final messages = raw
               .map((m) => (
@@ -183,6 +205,7 @@ class _LlamaWorker {
           _replyOk(id, {'text': text});
 
         case WorkerOp.generate:
+          await _warmUp;
           await _generate(
             id: id,
             messages: _decodeMessages(command['messages']),
@@ -259,8 +282,17 @@ class _LlamaWorker {
         model: model,
         contextLength: clampedContext,
         batchSize: configuration.batchSize,
-        threadCount: _native.recommendedThreadCount,
+        threadCount: configuration.threadCount ?? _native.recommendedThreadCount,
       );
+      // Unless a benchmark pinned one count: every core for reading prompts, two left free
+      // while generating. See `lc_set_threads` for the measurements behind the split.
+      if (configuration.threadCount == null) {
+        _native.setThreads(
+          context,
+          generation: _native.recommendedThreadCount,
+          prompt: _native.recommendedPromptThreadCount,
+        );
+      }
 
       ffi.Pointer<ffi.Void> sampler = ffi.nullptr;
       ffi.Pointer<ffi.Void> batch = ffi.nullptr;
@@ -310,7 +342,15 @@ class _LlamaWorker {
     );
   }
 
+  void _dropPrefixSnapshot() {
+    final snapshot = _prefixSnapshot;
+    if (snapshot != null) _native.freeStateSnapshot(snapshot);
+    _prefixSnapshot = null;
+    _prefixTokens = const [];
+  }
+
   void _freeNativeResources() {
+    _dropPrefixSnapshot();
     if (_sampler != ffi.nullptr) _native.freeSamplerChain(_sampler);
     if (_batch != ffi.nullptr) _native.freeBatch(_batch);
     if (_context != ffi.nullptr) _native.freeContext(_context);
@@ -384,15 +424,58 @@ class _LlamaWorker {
       throw const LlamaError.missingChatTemplate();
     }
     final formatted = _native.applyChatTemplate(
-      template: template,
-      messages: messages,
-      addAssistantMarker: true,
-    );
+          template: template,
+          messages: messages,
+          addAssistantMarker: true,
+        ) ??
+        _formatUnrecognisedTemplate(template, messages);
     if (formatted == null) {
       throw const LlamaError.missingChatTemplate();
     }
-    return formatted;
+    return formatted + _thinkingOffSuffix(template);
   }
+
+  /// Formats templates newer than the pinned llama.cpp's built-in table.
+  ///
+  /// `llama_chat_apply_template` recognises a template by its markers and does not run Jinja,
+  /// so a model released after the pin — Gemma 4, with its `<|turn>` / `<turn|>` markers —
+  /// loads and runs but cannot be prompted. This reproduces such a template's output for the
+  /// plain case the app uses (system, user and model turns; no tools; thinking off), exactly
+  /// as the model's own Jinja renders it. BOS is not written here: tokenisation adds it.
+  static String? _formatUnrecognisedTemplate(
+    String template,
+    List<({String role, String content})> messages,
+  ) {
+    if (!template.contains('<|turn>')) return null;
+    final out = StringBuffer();
+    for (final message in messages) {
+      final role = message.role == 'assistant' ? 'model' : message.role;
+      out
+        ..write('<|turn>$role\n')
+        ..write(message.content.trim())
+        ..write('<turn|>\n');
+    }
+    out.write('<|turn>model\n');
+    return out.toString();
+  }
+
+  /// What the model's own Jinja template appends after the assistant marker when
+  /// `enable_thinking` is not set — Qwen3/3.5's documented default, thinking off.
+  ///
+  /// `llama_chat_apply_template` recognises the template family but does not run the Jinja,
+  /// so it emits the bare `<|im_start|>assistant` marker and the model starts a free-form
+  /// `<think>` block. On a hard question that block alone exhausted a 1,024-token budget,
+  /// and the user saw nothing at all (the visible stream strips thinking). Prefilling the
+  /// empty block restores what the template author intended. Templates without the switch
+  /// are left exactly as llama.cpp formats them.
+  ///
+  /// Only for templates that think in `<think>` tags. Gemma 4 also has an `enable_thinking`
+  /// switch, but it thinks in a `<|channel>thought` block and is off unless asked — an empty
+  /// `<think>` pair there would just be stray text in the prompt.
+  static String _thinkingOffSuffix(String template) =>
+      template.contains('enable_thinking') && template.contains('<think>')
+          ? '<think>\n\n</think>\n\n'
+          : '';
 
   List<int> _tokenize(String text) {
     if (_vocab == ffi.nullptr) {
@@ -437,8 +520,8 @@ class _LlamaWorker {
         _samplerConfiguration = configuration;
       }
 
-      // 1. Clear the KV cache. The full-prompt-rebuild strategy starts from nothing every
-      //    turn — slower than incremental reuse, and impossible to get subtly wrong.
+      // 1. Clear the KV cache. Every turn starts from nothing — or from the saved state of
+      //    the fixed system-prompt prefix (step 4), never from a previous turn's leftovers.
       _native.clearMemory(_context);
 
       // 2. Trim history to fit, always keeping the current message.
@@ -470,8 +553,28 @@ class _LlamaWorker {
         throw const LlamaError.tokenizationFailed();
       }
 
-      // 4. Decode the prompt in batch-sized chunks.
-      var nPast = await _decodePrompt(promptTokens, batchSize: configuration.batchSize);
+      // 4. Decode the prompt in batch-sized chunks — skipping the fixed prefix when its saved
+      //    state can be restored. On a mid-range phone the prefix alone is minutes of a
+      //    student's wait per question with a 3B-class model; restoring it is a memcpy.
+      var startAt = 0;
+      int? snapshotAt;
+      final snapshot = _prefixSnapshot;
+      if (snapshot != null &&
+          promptTokens.length > _prefixTokens.length &&
+          _startsWith(promptTokens, _prefixTokens) &&
+          _native.restoreState(_context, snapshot)) {
+        startAt = _prefixTokens.length;
+      } else {
+        _native.clearMemory(_context);
+        final boundary = _fixedPrefixLength(promptTokens, configuration.systemPrompt);
+        if (boundary >= _minimumCachedPrefix) snapshotAt = boundary;
+      }
+      var nPast = await _decodePrompt(
+        promptTokens,
+        batchSize: configuration.batchSize,
+        startAt: startAt,
+        snapshotAt: snapshotAt,
+      );
 
       if (cancellation.isCancelled) {
         finishReason = GenerationFinishReason.cancelled;
@@ -646,14 +749,94 @@ class _LlamaWorker {
   /// The cancellation check between chunks is what makes a long prefill interruptible. The
   /// Swift original could not cancel here at all, because prompt decoding happened before
   /// its stream even existed.
-  Future<int> _decodePrompt(List<int> tokens, {required int batchSize}) async {
-    var position = 0;
-    var index = 0;
+  /// Decodes the fixed prefix once, straight after a model load, and saves its state — the
+  /// work the first question would otherwise wait for. Built from the same template call and
+  /// the same boundary rule [_generate] uses, so the snapshot matches a real prompt; if it
+  /// somehow does not, [_generate]'s prefix check simply decodes from scratch.
+  Future<void> _warmPrefix() async {
+    final configuration = _activeConfiguration;
+    if (!_isModelLoaded || configuration == null) return;
+    const fixed = GenerationConfiguration.defaultSystemPrompt;
+    final formatted = _detokenizeSafeFormatted(fixed);
+    if (formatted == null) return;
+    final tokens = _tokenize(formatted);
+    final boundary = _fixedPrefixLength(tokens, fixed);
+    if (boundary < _minimumCachedPrefix) return;
+    _native.clearMemory(_context);
+    await _decodePrompt(
+      tokens.sublist(0, boundary),
+      batchSize: configuration.batchSize,
+      snapshotAt: boundary,
+    );
+    _native.clearMemory(_context);
+  }
+
+  /// Prefixes shorter than this are not worth a snapshot's memory.
+  static const int _minimumCachedPrefix = 64;
+
+  /// How many leading tokens of [promptTokens] are the fixed, cacheable part: the template's
+  /// opening up to the end of [GenerationConfiguration.defaultSystemPrompt]. Everything the
+  /// orchestrator appends after it — date, textbook passages, history — changes per turn.
+  /// Zero when the prompt does not contain the default instructions (planner calls).
+  int _fixedPrefixLength(List<int> promptTokens, String systemPrompt) {
+    const fixed = GenerationConfiguration.defaultSystemPrompt;
+    if (!systemPrompt.startsWith(fixed)) return 0;
+    final formatted = _detokenizeSafeFormatted(systemPrompt);
+    if (formatted == null) return 0;
+    final end = formatted.indexOf(fixed);
+    if (end < 0) return 0;
+    final prefixTokens = _tokenize(formatted.substring(0, end + fixed.length));
+    var common = 0;
+    while (common < prefixTokens.length &&
+        common < promptTokens.length &&
+        prefixTokens[common] == promptTokens[common]) {
+      common++;
+    }
+    // One token short: the last token of the prefix may merge differently with what follows
+    // it in the full prompt, and a snapshot must end on a token both tokenisations share.
+    return common - 1;
+  }
+
+  /// The template applied to the system prompt alone — enough to locate where the fixed
+  /// instructions end in the full formatted prompt.
+  String? _detokenizeSafeFormatted(String systemPrompt) {
+    try {
+      return _applyTemplate([
+        (role: 'system', content: systemPrompt),
+        (role: 'user', content: '.'),
+      ]);
+    } on LlamaError {
+      return null;
+    }
+  }
+
+  static bool _startsWith(List<int> tokens, List<int> prefix) {
+    if (prefix.length > tokens.length) return false;
+    for (var index = 0; index < prefix.length; index++) {
+      if (tokens[index] != prefix[index]) return false;
+    }
+    return true;
+  }
+
+  /// Decodes `tokens[startAt:]` (the state already holds everything before [startAt]). When
+  /// [snapshotAt] is given, a chunk ends exactly there and the state is saved as the new
+  /// prefix snapshot before decoding continues.
+  Future<int> _decodePrompt(
+    List<int> tokens, {
+    required int batchSize,
+    int startAt = 0,
+    int? snapshotAt,
+  }) async {
+    var position = startAt;
+    var index = startAt;
 
     while (index < tokens.length) {
       if (cancellation.isCancelled) return position;
 
-      final chunkEnd = min(index + batchSize, tokens.length);
+      var chunkEnd = min(index + batchSize, tokens.length);
+      if (snapshotAt != null && index < snapshotAt && chunkEnd > snapshotAt) {
+        chunkEnd = snapshotAt;
+      }
       _native.clearBatch(_batch);
 
       for (var offset = 0; offset < chunkEnd - index; offset++) {
@@ -672,6 +855,15 @@ class _LlamaWorker {
 
       position += chunkEnd - index;
       index = chunkEnd;
+
+      if (snapshotAt != null && index == snapshotAt) {
+        final saved = _native.saveState(_context);
+        if (saved != null) {
+          _dropPrefixSnapshot();
+          _prefixSnapshot = saved;
+          _prefixTokens = List.unmodifiable(tokens.sublist(0, snapshotAt));
+        }
+      }
 
       await Future<void>.delayed(Duration.zero);
     }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -86,6 +87,19 @@ void main() {
 
       final results = await index.search('What is a noun?');
       expect(results.single.bookTitle, 'English For Today');
+    });
+
+    test('scores a matchinfo blob that is not 4-byte aligned, as Android delivers it', () {
+      // p=1 phrase, c=1 column, n=10 rows, a=[20], l=[20], x=[2 hits here, 5 total, 3 rows].
+      final aligned = Uint8List.view(
+          Uint32List.fromList([1, 1, 10, 20, 20, 2, 5, 3]).buffer);
+      // The same bytes, one byte into a larger buffer: a Uint32List view of this throws.
+      final padded = Uint8List(aligned.length + 1)..setRange(1, aligned.length + 1, aligned);
+      final misaligned = Uint8List.sublistView(padded, 1);
+      expect(misaligned.offsetInBytes % 4, isNot(0));
+      final expected = CurriculumIndex.bm25FromMatchInfo(aligned);
+      expect(expected, greaterThan(0));
+      expect(CurriculumIndex.bm25FromMatchInfo(misaligned), expected);
     });
 
     test('builds the full-text index once, not on every open', () async {

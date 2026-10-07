@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:offline_ai_chat/agent/agent_request.dart';
 import 'package:offline_ai_chat/agent/agent_router.dart';
 import 'package:offline_ai_chat/agent/device_context_tool.dart';
+import 'package:offline_ai_chat/agent/internal_term_scrubber.dart';
 import 'package:offline_ai_chat/agent/retrieval/bm25_scorer.dart';
 import 'package:offline_ai_chat/l10n/app_strings.dart';
 import 'package:offline_ai_chat/l10n/app_strings_bn.dart';
@@ -131,5 +132,12 @@ void main() {
     test('both languages offer the same number of starter suggestions', () {
       expect(const AppStringsBn().suggestions, hasLength(const AppStringsEn().suggestions.length));
     });
+  });
+
+  test('a leaked internal flag sentence is removed from a finished answer', () {
+    const answer = 'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত। '
+        'আমি এখানে WEB_SEARCH_PERFORMED এবং DOCUMENT_SEARCH_PERFORMED ব্যবহার করেছিলাম।';
+    expect(InternalTermScrubber.scrub(answer), 'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত।');
+    expect(InternalTermScrubber.scrub('A clean answer.'), 'A clean answer.');
   });
 }

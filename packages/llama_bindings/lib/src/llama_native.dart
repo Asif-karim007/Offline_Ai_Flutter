@@ -25,6 +25,14 @@ class LlamaNativeException implements Exception {
 /// policy — no prompt construction, no budgeting, no sampling strategy. That belongs to the
 /// engine one layer up, which is what makes the engine unit-testable against a fake.
 ///
+/// A saved sequence state, held in native memory. See [LlamaNative.saveState].
+final class StateSnapshot {
+  StateSnapshot._(this.pointer, this.sizeInBytes);
+
+  final ffi.Pointer<ffi.Uint8> pointer;
+  final int sizeInBytes;
+}
+
 /// All memory is allocated with the `ffi` package's `calloc` and released in `finally`
 /// blocks, including on the exception paths, because a throw here happens during generation
 /// and would otherwise leak a buffer per failed token.
@@ -61,6 +69,16 @@ class LlamaNative {
     final leaveFree = cores - 2;
     return leaveFree < 1 ? 1 : (leaveFree > 8 ? 8 : leaveFree);
   }
+
+  /// Threads for reading a prompt: every core, up to 8. Nothing is streaming on screen while
+  /// a prompt is read, and on a measured Snapdragon 732G each extra core still helped.
+  int get recommendedPromptThreadCount {
+    final cores = _ffi.cpuCount();
+    return cores < 1 ? 1 : (cores > 8 ? 8 : cores);
+  }
+
+  void setThreads(ffi.Pointer<ffi.Void> ctx, {required int generation, required int prompt}) =>
+      _ffi.setThreads(ctx, generation, prompt);
 
   int get defaultSeed => _ffi.defaultSeed();
 
@@ -165,6 +183,40 @@ class LlamaNative {
 
   /// Clears the KV cache without touching model weights.
   void clearMemory(ffi.Pointer<ffi.Void> ctx) => _ffi.memoryClear(ctx);
+
+  /// Copies sequence 0's current state into a newly allocated native buffer, or returns
+  /// null when there is nothing to save or the copy failed. The caller owns the buffer and
+  /// frees it with [freeStateSnapshot]. Kept native-side so a snapshot of tens of megabytes
+  /// is never copied through the Dart heap.
+  StateSnapshot? saveState(ffi.Pointer<ffi.Void> ctx) {
+    final size = _ffi.stateSize(ctx);
+    if (size <= 0) return null;
+    final buffer = malloc<ffi.Uint8>(size);
+    final err = calloc<ffi.Char>(_errorBufferSize);
+    try {
+      final written = _ffi.stateSave(ctx, buffer, size, err, _errorBufferSize);
+      if (written == 0) {
+        malloc.free(buffer);
+        return null;
+      }
+      return StateSnapshot._(buffer, written);
+    } finally {
+      calloc.free(err);
+    }
+  }
+
+  /// Loads [snapshot] into sequence 0, which the caller has just cleared. False on failure,
+  /// in which case the caller must decode the prompt from scratch.
+  bool restoreState(ffi.Pointer<ffi.Void> ctx, StateSnapshot snapshot) {
+    final err = calloc<ffi.Char>(_errorBufferSize);
+    try {
+      return _ffi.stateRestore(ctx, snapshot.pointer, snapshot.sizeInBytes, err, _errorBufferSize) > 0;
+    } finally {
+      calloc.free(err);
+    }
+  }
+
+  void freeStateSnapshot(StateSnapshot snapshot) => malloc.free(snapshot.pointer);
 
   // ---------------------------------------------------------------------------
   // Batch
