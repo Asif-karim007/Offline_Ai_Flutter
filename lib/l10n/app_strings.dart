@@ -180,6 +180,22 @@ abstract class AppStrings {
   String get deleteInvalidModel;
   String get chooseAModel;
   String get modelSetupBody;
+
+  // --- welcome (first run) -----------------------------------------------------------------
+
+  String get welcomeTitle;
+  String get welcomeBody;
+  String get welcomePreparing;
+  String get welcomeAlmostThere;
+  String get welcomePaused;
+  String get welcomeFailedTitle;
+  String get welcomeResume;
+  String get welcomePause;
+  String get welcomeWifiNote;
+  String welcomeProgress(String done, String total, int percent);
+
+  /// Short, calm lines that rotate under the progress bar while the download runs.
+  List<String> get welcomeReassurances;
   String get checkingModel;
   String get copyingModel;
   String get validatingModel;

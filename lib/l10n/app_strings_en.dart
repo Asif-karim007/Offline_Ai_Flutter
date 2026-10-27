@@ -196,6 +196,35 @@ class AppStringsEn extends AppStrings {
   String get modelSetupBody =>
       'Download one to start chatting — it is stored on this device and runs entirely on it.';
   @override
+  String get welcomeTitle => 'Welcome';
+  @override
+  String get welcomeBody =>
+      'We are getting your study companion ready. This happens once — after that it works without internet.';
+  @override
+  String get welcomePreparing => 'Getting things ready…';
+  @override
+  String get welcomeAlmostThere => 'Almost there…';
+  @override
+  String get welcomePaused => 'Paused. Pick up whenever you are ready.';
+  @override
+  String get welcomeFailedTitle => 'The connection dropped for a moment';
+  @override
+  String get welcomeResume => 'Continue';
+  @override
+  String get welcomePause => 'Pause';
+  @override
+  String get welcomeWifiNote => 'A Wi‑Fi connection is best — it is a large one-time download.';
+  @override
+  String welcomeProgress(String done, String total, int percent) =>
+      '$done of $total · $percent%';
+  @override
+  List<String> get welcomeReassurances => const [
+        'Everything stays on your phone.',
+        'No account needed. Your questions stay private.',
+        'If you close the app, we will pick up where we left off.',
+        'Take a breath — this is the only wait.',
+      ];
+  @override
   String get checkingModel => 'Checking model…';
   @override
   String get copyingModel => 'Copying model…';

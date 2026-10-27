@@ -212,6 +212,35 @@ class AppStringsBn extends AppStrings {
   String get modelSetupBody =>
       'চ্যাট শুরু করতে একটি মডেল ডাউনলোড করুন — এটি এই ডিভাইসেই থাকে এবং পুরোপুরি এখানেই চলে।';
   @override
+  String get welcomeTitle => 'স্বাগতম';
+  @override
+  String get welcomeBody =>
+      'আমরা আপনার পড়াশোনার সঙ্গীকে প্রস্তুত করছি। এটি শুধু একবারই হয় — এরপর ইন্টারনেট ছাড়াই কাজ করবে।';
+  @override
+  String get welcomePreparing => 'সবকিছু প্রস্তুত হচ্ছে…';
+  @override
+  String get welcomeAlmostThere => 'প্রায় হয়ে গেছে…';
+  @override
+  String get welcomePaused => 'বিরতিতে আছে। যখন ইচ্ছা আবার শুরু করুন।';
+  @override
+  String get welcomeFailedTitle => 'সংযোগ কিছুক্ষণের জন্য বিচ্ছিন্ন হয়েছে';
+  @override
+  String get welcomeResume => 'চালিয়ে যান';
+  @override
+  String get welcomePause => 'বিরতি';
+  @override
+  String get welcomeWifiNote => 'ওয়াই-ফাই সংযোগ হলে ভালো — এটি একবারের বড় ডাউনলোড।';
+  @override
+  String welcomeProgress(String done, String total, int percent) =>
+      '$total-এর মধ্যে $done · $percent%';
+  @override
+  List<String> get welcomeReassurances => const [
+        'সবকিছু আপনার ফোনেই থাকে।',
+        'কোনো অ্যাকাউন্ট লাগে না। আপনার প্রশ্ন গোপন থাকে।',
+        'অ্যাপ বন্ধ করলেও আমরা যেখানে থেমেছিলাম সেখান থেকেই শুরু করব।',
+        'একটু বিশ্রাম নিন — এটাই একমাত্র অপেক্ষা।',
+      ];
+  @override
   String get checkingModel => 'মডেল খোঁজা হচ্ছে…';
   @override
   String get copyingModel => 'মডেল কপি করা হচ্ছে…';
