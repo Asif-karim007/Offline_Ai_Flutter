@@ -32,6 +32,7 @@
 #define LLAMA_SHIM_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #if defined(_WIN32)
