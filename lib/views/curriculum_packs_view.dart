@@ -11,7 +11,8 @@ import 'error_banner.dart';
 import 'theme.dart';
 
 /// Short display name for a pack: "Class 9–10 · Bangla version" / "নবম–দশম শ্রেণি · বাংলা ভার্সন".
-String curriculumPackTitle(AppStrings strings, CurriculumPack pack) => strings.packTitle(
+String curriculumPackTitle(AppStrings strings, CurriculumPack pack) =>
+    strings.packTitle(
       pack.classNumbers,
       pack.stream,
       banglaVersion: pack.isBanglaVersion,
@@ -78,7 +79,8 @@ class CurriculumPacksView extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton(
-                            onPressed: () => unawaited(service.refreshManifest()),
+                            onPressed: () =>
+                                unawaited(service.refreshManifest()),
                             child: Text(strings.retry),
                           ),
                         ],
@@ -105,7 +107,21 @@ class _PackRow extends StatelessWidget {
 
   final CurriculumPack pack;
 
-  Future<void> _confirmDelete(BuildContext context, CurriculumService service) async {
+  Future<void> _download(
+      BuildContext context, CurriculumService service) async {
+    await service.download(pack);
+    if (!context.mounted ||
+        service.errorMessage != null ||
+        service.statusOf(pack) != CurriculumPackStatus.installed) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppStrings.of(context).offlineReadyForChildren)),
+    );
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, CurriculumService service) async {
     final strings = AppStrings.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -119,7 +135,8 @@ class _PackRow extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
             child: Text(strings.delete),
           ),
         ],
@@ -136,16 +153,21 @@ class _PackRow extends StatelessWidget {
     final strings = AppStrings.of(context);
     final status = service.statusOf(pack);
     final isActive = service.activePackId == pack.id;
-    final progress = status == CurriculumPackStatus.downloading ? service.downloadProgress : null;
+    final progress = status == CurriculumPackStatus.downloading
+        ? service.downloadProgress
+        : null;
 
     final Widget trailing = switch (status) {
       CurriculumPackStatus.notInstalled => FilledButton(
-          onPressed: service.isDownloading ? null : () => unawaited(service.download(pack)),
+          onPressed: service.isDownloading
+              ? null
+              : () => unawaited(_download(context, service)),
           child: Text(strings.download),
         ),
       CurriculumPackStatus.downloading => TextButton(
           onPressed: () => unawaited(service.cancelDownload()),
-          style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+          style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error),
           child: Text(strings.cancel),
         ),
       CurriculumPackStatus.preparing => Row(
@@ -180,7 +202,8 @@ class _PackRow extends StatelessWidget {
 
     return Material(
       color: AppColors.thickMaterial(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(14))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14))),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
@@ -189,13 +212,15 @@ class _PackRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(AppIcons.books, size: 22, color: AppColors.secondaryLabel(context)),
+                Icon(AppIcons.books,
+                    size: 22, color: AppColors.secondaryLabel(context)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(curriculumPackTitle(strings, pack), style: AppText.headline(context)),
+                      Text(curriculumPackTitle(strings, pack),
+                          style: AppText.headline(context)),
                       const SizedBox(height: 2),
                       Text(
                         strings.packDetails(
@@ -213,7 +238,8 @@ class _PackRow extends StatelessWidget {
                 trailing,
                 if (status == CurriculumPackStatus.installed)
                   IconButton(
-                    onPressed: () => unawaited(_confirmDelete(context, service)),
+                    onPressed: () =>
+                        unawaited(_confirmDelete(context, service)),
                     icon: const Icon(AppIcons.trash, size: 20),
                     tooltip: strings.delete,
                   )
@@ -227,7 +253,8 @@ class _PackRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.all(Radius.circular(3)),
-                  child: LinearProgressIndicator(value: progress?.fraction, minHeight: 6),
+                  child: LinearProgressIndicator(
+                      value: progress?.fraction, minHeight: 6),
                 ),
               ),
               if (progress != null && progress.isDeterminate) ...[

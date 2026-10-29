@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../curriculum/curriculum_service.dart';
 import '../l10n/app_strings.dart';
+import '../model_management/app_settings.dart';
 import '../persistence/conversation.dart';
 import '../persistence/conversation_repository.dart';
 import '../viewmodels/app_view_model.dart';
@@ -11,6 +13,7 @@ import '../viewmodels/chat_view_model.dart';
 import '../viewmodels/model_manager_view_model.dart';
 import '../viewmodels/sidebar_view_model.dart';
 import 'chat_view.dart';
+import 'curriculum_packs_view.dart';
 import 'model_manager_view.dart';
 import 'sidebar_view.dart';
 import 'theme.dart';
@@ -65,6 +68,45 @@ class _MainSplitViewState extends State<MainSplitView> {
       chatEngine: appViewModel.chatEngine,
       settings: appViewModel.settings,
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_offerTextbooksBeforeChat());
+      }
+    });
+  }
+
+  Future<void> _offerTextbooksBeforeChat() async {
+    final settings = context.read<AppSettings>();
+    final curriculum = context.read<CurriculumService>();
+    if (settings.hasSeenTextbooksPrompt || curriculum.activePackId != null) {
+      return;
+    }
+
+    final strings = AppStrings.of(context);
+    final addTextbooks = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(AppIcons.books),
+        title: Text(strings.textbooksPromptTitle),
+        content: Text(strings.textbooksPromptBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(strings.skipForNow),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(strings.addTextbooks),
+          ),
+        ],
+      ),
+    );
+    settings.hasSeenTextbooksPrompt = true;
+    if (addTextbooks == true && mounted) {
+      await showCurriculumPacks(context);
+    }
   }
 
   @override
@@ -191,11 +233,13 @@ class _MainSplitViewState extends State<MainSplitView> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<ChatViewModel>.value(value: _chatViewModel),
-        ChangeNotifierProvider<SidebarViewModel>.value(value: _sidebarViewModel),
+        ChangeNotifierProvider<SidebarViewModel>.value(
+            value: _sidebarViewModel),
       ],
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= MainSplitView.wideLayoutBreakpoint;
+          final isWide =
+              constraints.maxWidth >= MainSplitView.wideLayoutBreakpoint;
           return isWide ? _buildWide(context) : _buildCompact(context);
         },
       ),
@@ -259,7 +303,8 @@ class _MainSplitViewState extends State<MainSplitView> {
             ),
           ),
           child: SidebarView(
-            selectedConversationId: isTemporary ? null : _selectedConversationId,
+            selectedConversationId:
+                isTemporary ? null : _selectedConversationId,
             onSelectConversation: _requestSelectConversation,
             onNewChat: _requestNewChat,
             onOpenModelManager: () => unawaited(_openModelManager()),

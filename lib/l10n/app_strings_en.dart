@@ -213,7 +213,8 @@ class AppStringsEn extends AppStrings {
   @override
   String get welcomePause => 'Pause';
   @override
-  String get welcomeWifiNote => 'A Wi‑Fi connection is best — it is a large one-time download.';
+  String get welcomeWifiNote =>
+      'A Wi‑Fi connection is best — it is a large one-time download.';
   @override
   String welcomeProgress(String done, String total, int percent) =>
       '$done of $total · $percent%';
@@ -251,13 +252,15 @@ class AppStringsEn extends AppStrings {
   @override
   String get temporaryChat => 'Temporary Chat';
   @override
-  String get temporaryChatBanner => 'Temporary chat — messages will not be saved';
+  String get temporaryChatBanner =>
+      'Temporary chat — messages will not be saved';
   @override
   String modelTitle(String name) => 'Model: $name';
   @override
   String get emptyStateTitle => 'How can I help?';
   @override
-  String get emptyStateSubtitle => 'Everything you ask is answered by a model on this device.';
+  String get emptyStateSubtitle =>
+      'Everything you ask is answered by a model on this device.';
   @override
   List<String> get suggestions => const [
         'Explain photosynthesis simply',
@@ -309,16 +312,28 @@ class AppStringsEn extends AppStrings {
       'Pick your class and version. The textbooks download once; after that, answers are '
       'looked up in them offline and cite the book and page.';
   @override
-  String packTitle(List<int> classes, String stream, {required bool banglaVersion}) {
+  String get textbooksPromptTitle => 'Add your child’s class textbooks?';
+  @override
+  String get textbooksPromptBody =>
+      'Choose the class before starting a chat for stronger offline study answers. You can '
+      'skip this step, but if no class is selected, offline results may be less accurate.';
+  @override
+  String get skipForNow => 'Skip for now';
+  @override
+  String get offlineReadyForChildren =>
+      'Textbooks downloaded. Offline mode is ready for your children.';
+  @override
+  String packTitle(List<int> classes, String stream,
+      {required bool banglaVersion}) {
     final version = banglaVersion ? 'Bangla version' : 'English version';
-    final grade = stream == 'hsc'
-        ? 'HSC (Class 11–12)'
-        : 'Class ${classes.join('–')}';
+    final grade =
+        stream == 'hsc' ? 'HSC (Class 11–12)' : 'Class ${classes.join('–')}';
     return '$grade · $version';
   }
 
   @override
-  String packDetails(int books, String size) => '$books ${books == 1 ? 'book' : 'books'} · $size';
+  String packDetails(int books, String size) =>
+      '$books ${books == 1 ? 'book' : 'books'} · $size';
   @override
   String get usePack => 'Use';
   @override
@@ -331,11 +346,13 @@ class AppStringsEn extends AppStrings {
   @override
   String get addTextbooks => 'Add your class textbooks';
   @override
-  String answersFromTextbooks(String packTitle) => 'Answers use your textbooks: $packTitle';
+  String answersFromTextbooks(String packTitle) =>
+      'Answers use your textbooks: $packTitle';
   @override
   String get deletePackTitle => 'Delete these textbooks?';
   @override
-  String get deletePackBody => 'They are removed from this device. You can download them again later.';
+  String get deletePackBody =>
+      'They are removed from this device. You can download them again later.';
 
   // --- composer ----------------------------------------------------------------------------
 
@@ -455,14 +472,17 @@ class AppStringsEn extends AppStrings {
   String get errorInvalidFileExtension =>
       "That file isn't a GGUF model. Please choose a file ending in .gguf.";
   @override
-  String get errorFileAccessDenied => "The app doesn't have permission to read that file.";
+  String get errorFileAccessDenied =>
+      "The app doesn't have permission to read that file.";
   @override
-  String get errorModelCopyFailed => "The model file couldn't be copied into the app's storage.";
+  String get errorModelCopyFailed =>
+      "The model file couldn't be copied into the app's storage.";
   @override
   String get errorModelLoadFailed =>
       'The model failed to load. It may be corrupted or incompatible with this device.';
   @override
-  String get errorUnsupportedGguf => "This GGUF file isn't a supported model format.";
+  String get errorUnsupportedGguf =>
+      "This GGUF file isn't a supported model format.";
   @override
   String get errorMissingChatTemplate =>
       "This model doesn't include a usable chat template, so it can't be used for chat yet.";
@@ -473,7 +493,8 @@ class AppStringsEn extends AppStrings {
   String get errorSamplerCreationFailed =>
       "The app couldn't set up text generation for this model.";
   @override
-  String get errorTokenizationFailed => "The app couldn't process this text for the model.";
+  String get errorTokenizationFailed =>
+      "The app couldn't process this text for the model.";
   @override
   String errorPromptTooLarge(int? required, int? available) =>
       "This message is too long for the model's context window "
@@ -494,14 +515,17 @@ class AppStringsEn extends AppStrings {
   @override
   String get errorModelNotLoaded => 'No model is currently loaded.';
   @override
-  String get errorGenerationAlreadyInProgress => 'A response is already being generated.';
+  String get errorGenerationAlreadyInProgress =>
+      'A response is already being generated.';
   @override
   String get errorNativeException =>
       'The model engine hit an internal error and recovered safely. Please try again.';
   @override
-  String get errorUnknownNative => 'An unexpected error occurred in the model engine.';
+  String get errorUnknownNative =>
+      'An unexpected error occurred in the model engine.';
   @override
-  String errorUnsupportedDocument(String fileName) => '"$fileName" isn\'t a supported file type.';
+  String errorUnsupportedDocument(String fileName) =>
+      '"$fileName" isn\'t a supported file type.';
   @override
   String get errorPdfHasNoText => 'This PDF does not contain extractable text.';
   @override

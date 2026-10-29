@@ -29,7 +29,8 @@ void main() {
 
   group('BanglaText.normalize', () {
     test('maps both spellings of য় to the same NFC form', () {
-      expect(BanglaText.normalize(kotaPrecomposed), BanglaText.normalize(kotaDecomposed));
+      expect(BanglaText.normalize(kotaPrecomposed),
+          BanglaText.normalize(kotaDecomposed));
       expect(BanglaText.normalize('য়'), 'য়');
     });
 
@@ -69,7 +70,9 @@ void main() {
   });
 
   group('AgentRouter in Bangla', () {
-    test('routes a Bangla time question to the device clock, from either keyboard', () {
+    test(
+        'routes a Bangla time question to the device clock, from either keyboard',
+        () {
       expect(_isDeviceContext(_route(kotaPrecomposed)), isTrue);
       expect(_isDeviceContext(_route(kotaDecomposed)), isTrue);
     });
@@ -79,7 +82,8 @@ void main() {
     });
 
     test('does not mistake a physics question for a clock question', () {
-      expect(_isDeviceContext(_route('বস্তুটি মাটিতে পড়তে কত সময় লাগবে?')), isFalse);
+      expect(_isDeviceContext(_route('বস্তুটি মাটিতে পড়তে কত সময় লাগবে?')),
+          isFalse);
     });
 
     test('does not force a history question to the web', () {
@@ -89,7 +93,8 @@ void main() {
     test('honours a Bangla "do not use the internet" restriction', () {
       final route = _route('ইন্টারনেট ব্যবহার করো না, আজকের খবর কী?');
       expect(route, isA<DefiniteRoute>());
-      expect((route as DefiniteRoute).decision.reason, 'router_explicit_no_web');
+      expect(
+          (route as DefiniteRoute).decision.reason, 'router_explicit_no_web');
     });
 
     test('sends an explicit Bangla web request to web search', () {
@@ -108,14 +113,15 @@ void main() {
     );
 
     test('a Bangla date question gets a Bangla answer', () {
-      final answer = DeviceContextTool.formattedAnswer('আজ কত তারিখ?', context: context);
+      final answer =
+          DeviceContextTool.formattedAnswer('আজ কত তারিখ?', context: context);
       expect(answer, startsWith('আজ '));
       expect(answer, contains('অক্টোবর'));
     });
 
     test('an English date question still gets an English answer', () {
-      final answer =
-          DeviceContextTool.formattedAnswer("What's today's date?", context: context);
+      final answer = DeviceContextTool.formattedAnswer("What's today's date?",
+          context: context);
       expect(answer, startsWith('Today is '));
       expect(answer, contains('October'));
     });
@@ -123,21 +129,31 @@ void main() {
 
   group('AppStrings', () {
     test('picks the language from the locale and from the text', () {
-      expect(AppStrings.forLocale(const Locale('bn', 'BD')), isA<AppStringsBn>());
+      expect(
+          AppStrings.forLocale(const Locale('bn', 'BD')), isA<AppStringsBn>());
       expect(AppStrings.forLocale(const Locale('fr')), isA<AppStringsEn>());
       expect(AppStrings.forText('পদার্থবিজ্ঞান কী?'), isA<AppStringsBn>());
       expect(AppStrings.forText('What is physics?'), isA<AppStringsEn>());
     });
 
     test('both languages offer the same number of starter suggestions', () {
-      expect(const AppStringsBn().suggestions, hasLength(const AppStringsEn().suggestions.length));
+      expect(const AppStringsBn().suggestions,
+          hasLength(const AppStringsEn().suggestions.length));
+    });
+
+    test('the pre-chat textbook prompt warns about weaker offline results', () {
+      expect(const AppStringsEn().textbooksPromptBody,
+          contains('offline results may be less accurate'));
+      expect(const AppStringsBn().textbooksPromptBody, contains('অফলাইন'));
     });
   });
 
   test('a leaked internal flag sentence is removed from a finished answer', () {
-    const answer = 'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত। '
+    const answer =
+        'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত। '
         'আমি এখানে WEB_SEARCH_PERFORMED এবং DOCUMENT_SEARCH_PERFORMED ব্যবহার করেছিলাম।';
-    expect(InternalTermScrubber.scrub(answer), 'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত।');
+    expect(InternalTermScrubber.scrub(answer),
+        'নিউটনের তৃতীয় সূত্র হলো ক্রিয়া ও প্রতিক্রিয়া সমান ও বিপরীত।');
     expect(InternalTermScrubber.scrub('A clean answer.'), 'A clean answer.');
   });
 }

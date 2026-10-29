@@ -30,7 +30,8 @@ Widget _app(AppSettings settings) => ChangeNotifierProvider<AppSettings>.value(
     );
 
 void main() {
-  testWidgets('switching the language setting relabels the UI and context-free text',
+  testWidgets(
+      'switching the language setting relabels the UI and context-free text',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     final settings = await AppSettings.load();
@@ -43,12 +44,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('নতুন চ্যাট'), findsOneWidget);
     // Error types have no BuildContext; they follow the same switch through `current`.
-    expect(const LlamaError.modelNotLoaded().errorDescription, 'এখন কোনো মডেল লোড করা নেই।');
+    expect(const LlamaError.modelNotLoaded().errorDescription,
+        'এখন কোনো মডেল লোড করা নেই।');
 
     settings.appLanguage = AppLanguage.english;
     await tester.pumpAndSettle();
     expect(find.text('New Chat'), findsOneWidget);
-    expect(const LlamaError.modelNotLoaded().errorDescription, 'No model is currently loaded.');
+    expect(const LlamaError.modelNotLoaded().errorDescription,
+        'No model is currently loaded.');
   });
 
   test('the language choice is persisted', () async {
@@ -59,5 +62,16 @@ void main() {
     settings.appLanguage = AppLanguage.bangla;
     final reloaded = await AppSettings.load();
     expect(reloaded.appLanguage, AppLanguage.bangla);
+  });
+
+  test('the pre-chat textbook choice is remembered', () async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = await AppSettings.load();
+
+    expect(settings.hasSeenTextbooksPrompt, isFalse);
+    settings.hasSeenTextbooksPrompt = true;
+
+    final reloaded = await AppSettings.load();
+    expect(reloaded.hasSeenTextbooksPrompt, isTrue);
   });
 }

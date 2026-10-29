@@ -52,14 +52,16 @@ abstract class AppStrings {
 
   static const List<Locale> supportedLocales = [Locale('en'), Locale('bn')];
 
-  static const LocalizationsDelegate<AppStrings> delegate = _AppStringsDelegate();
+  static const LocalizationsDelegate<AppStrings> delegate =
+      _AppStringsDelegate();
 
   static AppStrings of(BuildContext context) =>
       Localizations.of<AppStrings>(context, AppStrings) ?? current;
 
   /// The language the UI is currently in. Before the first frame — and in tests that never
   /// build a `MaterialApp` — this follows the device locale.
-  static AppStrings get current => _current ??= forLocale(ui.PlatformDispatcher.instance.locale);
+  static AppStrings get current =>
+      _current ??= forLocale(ui.PlatformDispatcher.instance.locale);
   static AppStrings? _current;
 
   @visibleForTesting
@@ -236,10 +238,15 @@ abstract class AppStrings {
   String get chooseTextbooks;
   String get textbooksFooter;
   String get textbooksIntro;
+  String get textbooksPromptTitle;
+  String get textbooksPromptBody;
+  String get skipForNow;
+  String get offlineReadyForChildren;
 
   /// "Class 9–10 · Bangla version". [classes] is e.g. `[9, 10]`; [stream] is `general` or
   /// `hsc`.
-  String packTitle(List<int> classes, String stream, {required bool banglaVersion});
+  String packTitle(List<int> classes, String stream,
+      {required bool banglaVersion});
   String packDetails(int books, String size);
   String get usePack;
   String get inUse;

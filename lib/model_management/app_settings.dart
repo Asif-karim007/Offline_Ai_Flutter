@@ -32,8 +32,8 @@ class AppSettings extends ChangeNotifier {
   AppSettings._(this._preferences, this._apiKeyStore)
       : _selectedModelFileName =
             _preferences.getString(_Keys.selectedModelFileName),
-        _contextLengthPreset =
-            _readIntWithZeroAsUnset(_preferences, _Keys.contextLengthPreset, 4096),
+        _contextLengthPreset = _readIntWithZeroAsUnset(
+            _preferences, _Keys.contextLengthPreset, 4096),
         _maxResponseTokens =
             // 768, not the Swift app's 384: a step-by-step explanation runs 500–800 tokens,
             // and at 384 most study answers on-device stopped mid-sentence. The answer streams,
@@ -43,14 +43,19 @@ class AppSettings extends ChangeNotifier {
         _temperature = _preferences.getDouble(_Keys.temperature) ?? 0.3,
         _useDeterministicSeed =
             _preferences.getBool(_Keys.useDeterministicSeed) ?? false,
-        _debugMetricsEnabled = _preferences.getBool(_Keys.debugMetricsEnabled) ?? false,
+        _debugMetricsEnabled =
+            _preferences.getBool(_Keys.debugMetricsEnabled) ?? false,
         _hasBundledModelBeenCopied =
             _preferences.getBool(_Keys.bundledModelCopied) ?? false,
-        _webSearchMode =
-            _webSearchModeFromStored(_preferences.getString(_Keys.webSearchMode)),
+        _webSearchMode = _webSearchModeFromStored(
+            _preferences.getString(_Keys.webSearchMode)),
         _hasBraveApiKey = _preferences.getBool(_Keys.hasBraveApiKey) ?? false,
-        _appLanguage = AppLanguage.fromWireValue(_preferences.getString(_Keys.appLanguage)),
-        _activeCurriculumPackId = _preferences.getString(_Keys.activeCurriculumPackId);
+        _appLanguage = AppLanguage.fromWireValue(
+            _preferences.getString(_Keys.appLanguage)),
+        _activeCurriculumPackId =
+            _preferences.getString(_Keys.activeCurriculumPackId),
+        _hasSeenTextbooksPrompt =
+            _preferences.getBool(_Keys.hasSeenTextbooksPrompt) ?? false;
 
   /// Reads every value once, up front.
   ///
@@ -116,6 +121,7 @@ class AppSettings extends ChangeNotifier {
   bool _hasBraveApiKey;
   AppLanguage _appLanguage;
   String? _activeCurriculumPackId;
+  bool _hasSeenTextbooksPrompt;
 
   String? get selectedModelFileName => _selectedModelFileName;
 
@@ -245,6 +251,19 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether the user has already chosen to add textbooks or explicitly skipped the
+  /// pre-chat reminder. The picker remains available from the chat and settings screens.
+  bool get hasSeenTextbooksPrompt => _hasSeenTextbooksPrompt;
+
+  set hasSeenTextbooksPrompt(bool value) {
+    if (_hasSeenTextbooksPrompt == value) {
+      return;
+    }
+    _hasSeenTextbooksPrompt = value;
+    _preferences.setBool(_Keys.hasSeenTextbooksPrompt, value).ignore();
+    notifyListeners();
+  }
+
   /// Whether a Brave Search API key is configured. Read-only from outside — the only way to
   /// change it is [setBraveApiKey], which keeps it in step with the keychain.
   bool get hasBraveApiKey => _hasBraveApiKey;
@@ -317,8 +336,8 @@ class AppSettings extends ChangeNotifier {
   /// The simulator has no usable Metal path for llama.cpp, so offloading there fails slowly
   /// instead of failing fast.
   static int _gpuLayers() {
-    final isIosSimulator =
-        Platform.isIOS && Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
+    final isIosSimulator = Platform.isIOS &&
+        Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
     return isIosSimulator ? 0 : -1;
   }
 
@@ -370,5 +389,8 @@ abstract final class _Keys {
 
   /// New in this app — the Swift original was English-only — so there is no iOS key to match.
   static const String appLanguage = 'settings.appLanguage';
-  static const String activeCurriculumPackId = 'settings.activeCurriculumPackId';
+  static const String activeCurriculumPackId =
+      'settings.activeCurriculumPackId';
+  static const String hasSeenTextbooksPrompt =
+      'settings.hasSeenTextbooksPrompt';
 }

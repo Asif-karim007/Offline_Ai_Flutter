@@ -179,24 +179,30 @@ class AppStringsBn extends AppStrings {
   @override
   String get installed => 'ইনস্টল করা আছে';
   @override
-  String downloadProgress(String written, String total) => '$total-এর মধ্যে $written';
+  String downloadProgress(String written, String total) =>
+      '$total-এর মধ্যে $written';
   @override
   String contextTokens(String amount) => '$amount কনটেক্সট';
 
   static const Map<String, String> _catalogNotes = {
-    'qwen3.5-0.8b-q4_k_m': 'শুরু করার জন্য সবচেয়ে উপযুক্ত। বাংলাসহ ২০১টি ভাষা জানে।',
-    'qwen3.5-2b-q4_k_m': 'A19 Pro-তে মাপা গতি ৩৯ টোকেন/সেকেন্ড, সর্বোচ্চ ১.৪৮ GB মেমরি।',
+    'qwen3.5-0.8b-q4_k_m':
+        'শুরু করার জন্য সবচেয়ে উপযুক্ত। বাংলাসহ ২০১টি ভাষা জানে।',
+    'qwen3.5-2b-q4_k_m':
+        'A19 Pro-তে মাপা গতি ৩৯ টোকেন/সেকেন্ড, সর্বোচ্চ ১.৪৮ GB মেমরি।',
     'qwen3.5-4b-q4_k_m': 'KV ক্যাশ ছাড়াই শুধু মডেলের ওজন ২.৭৪ GB।',
     'gemma-3n-e2b-it-q4_k_m':
         'মাল্টিমোডাল মডেল, এখানে শুধু লেখার জন্য ব্যবহার হয়। আরও ভালো মানের জন্য E4B বেছে নিন।',
     'gemma-3n-e4b-it-q4_k_m':
         'মাল্টিমোডাল মডেল, এখানে শুধু লেখার জন্য ব্যবহার হয়। KV ক্যাশ ছাড়াই শুধু ওজন ৪.৫৪ GB।',
-    'multilingual-e5-small-q8_0': 'হাইব্রিড খোঁজার জন্য এমবেডিং মডেল। চ্যাটে ব্যবহার করা যায় না।',
-    'gemma-4-e2b-it-qat-q4_0': 'বাংলা ও ইংরেজিতে পড়াশোনার উত্তরে সবচেয়ে ভালো। প্রস্তাবিত।',
+    'multilingual-e5-small-q8_0':
+        'হাইব্রিড খোঁজার জন্য এমবেডিং মডেল। চ্যাটে ব্যবহার করা যায় না।',
+    'gemma-4-e2b-it-qat-q4_0':
+        'বাংলা ও ইংরেজিতে পড়াশোনার উত্তরে সবচেয়ে ভালো। প্রস্তাবিত।',
   };
 
   @override
-  String catalogNote(String modelId, String fallback) => _catalogNotes[modelId] ?? fallback;
+  String catalogNote(String modelId, String fallback) =>
+      _catalogNotes[modelId] ?? fallback;
 
   // --- first launch ------------------------------------------------------------------------
 
@@ -229,7 +235,8 @@ class AppStringsBn extends AppStrings {
   @override
   String get welcomePause => 'বিরতি';
   @override
-  String get welcomeWifiNote => 'ওয়াই-ফাই সংযোগ হলে ভালো — এটি একবারের বড় ডাউনলোড।';
+  String get welcomeWifiNote =>
+      'ওয়াই-ফাই সংযোগ হলে ভালো — এটি একবারের বড় ডাউনলোড।';
   @override
   String welcomeProgress(String done, String total, int percent) =>
       '$total-এর মধ্যে $done · $percent%';
@@ -253,7 +260,8 @@ class AppStringsBn extends AppStrings {
   @override
   String get noModelInstalled => 'কোনো মডেল ইনস্টল করা নেই';
   @override
-  String conversationStoreFailed(String detail) => 'কথোপকথনের ডেটাবেস খোলা যায়নি: $detail';
+  String conversationStoreFailed(String detail) =>
+      'কথোপকথনের ডেটাবেস খোলা যায়নি: $detail';
 
   // --- chat --------------------------------------------------------------------------------
 
@@ -266,13 +274,15 @@ class AppStringsBn extends AppStrings {
   @override
   String get temporaryChat => 'অস্থায়ী চ্যাট';
   @override
-  String get temporaryChatBanner => 'অস্থায়ী চ্যাট — বার্তাগুলো সংরক্ষণ করা হবে না';
+  String get temporaryChatBanner =>
+      'অস্থায়ী চ্যাট — বার্তাগুলো সংরক্ষণ করা হবে না';
   @override
   String modelTitle(String name) => 'মডেল: $name';
   @override
   String get emptyStateTitle => 'কীভাবে সাহায্য করতে পারি?';
   @override
-  String get emptyStateSubtitle => 'আপনার প্রতিটি প্রশ্নের উত্তর দেয় এই ডিভাইসেই চলা একটি মডেল।';
+  String get emptyStateSubtitle =>
+      'আপনার প্রতিটি প্রশ্নের উত্তর দেয় এই ডিভাইসেই চলা একটি মডেল।';
   @override
   List<String> get suggestions => const [
         'সালোকসংশ্লেষণ সহজভাবে বুঝিয়ে দাও',
@@ -300,7 +310,8 @@ class AppStringsBn extends AppStrings {
   @override
   String get endTemporaryChatTitle => 'অস্থায়ী চ্যাট শেষ করবেন?';
   @override
-  String get endTemporaryChatBody => 'এই কথোপকথনটি সংরক্ষিত নয়, তাই এটি স্থায়ীভাবে মুছে যাবে।';
+  String get endTemporaryChatBody =>
+      'এই কথোপকথনটি সংরক্ষিত নয়, তাই এটি স্থায়ীভাবে মুছে যাবে।';
   @override
   String get discard => 'মুছে ফেলুন';
   @override
@@ -322,14 +333,39 @@ class AppStringsBn extends AppStrings {
   String get textbooksIntro =>
       'আপনার শ্রেণি ও ভার্সন বেছে নিন। বইগুলো একবারই ডাউনলোড হবে; এরপর অফলাইনেই উত্তর সেই '
       'বই থেকে খোঁজা হবে এবং কোন বইয়ের কোন পৃষ্ঠা, তা-ও দেখানো হবে।';
+  @override
+  String get textbooksPromptTitle =>
+      'আপনার সন্তানের শ্রেণির পাঠ্যবই যোগ করবেন?';
+  @override
+  String get textbooksPromptBody =>
+      'অফলাইনে পড়াশোনার ভালো উত্তর পেতে চ্যাট শুরুর আগে শ্রেণি বেছে নিন। চাইলে '
+      'এখন এড়িয়ে যেতে পারেন, তবে কোনো শ্রেণি নির্বাচন না করলে অফলাইন ফলাফল কম নির্ভুল '
+      'হতে পারে।';
+  @override
+  String get skipForNow => 'এখন এড়িয়ে যান';
+  @override
+  String get offlineReadyForChildren =>
+      'পাঠ্যবই ডাউনলোড হয়েছে। আপনার সন্তানদের জন্য অফলাইন মোড প্রস্তুত।';
 
   static const List<String> _ordinals = [
-    'প্রথম', 'দ্বিতীয়', 'তৃতীয়', 'চতুর্থ', 'পঞ্চম', 'ষষ্ঠ',
-    'সপ্তম', 'অষ্টম', 'নবম', 'দশম', 'একাদশ', 'দ্বাদশ',
+    'প্রথম',
+    'দ্বিতীয়',
+    'তৃতীয়',
+    'চতুর্থ',
+    'পঞ্চম',
+    'ষষ্ঠ',
+    'সপ্তম',
+    'অষ্টম',
+    'নবম',
+    'দশম',
+    'একাদশ',
+    'দ্বাদশ',
   ];
 
   static String _ordinal(int number) =>
-      number >= 1 && number <= _ordinals.length ? _ordinals[number - 1] : _digits('$number');
+      number >= 1 && number <= _ordinals.length
+          ? _ordinals[number - 1]
+          : _digits('$number');
 
   /// Western digits to Bengali digits: "33" → "৩৩".
   static String _digits(String text) => text.replaceAllMapped(
@@ -338,7 +374,8 @@ class AppStringsBn extends AppStrings {
       );
 
   @override
-  String packTitle(List<int> classes, String stream, {required bool banglaVersion}) {
+  String packTitle(List<int> classes, String stream,
+      {required bool banglaVersion}) {
     final version = banglaVersion ? 'বাংলা ভার্সন' : 'ইংলিশ ভার্সন';
     final grade = stream == 'hsc'
         ? 'এইচএসসি (একাদশ–দ্বাদশ শ্রেণি)'
@@ -347,7 +384,8 @@ class AppStringsBn extends AppStrings {
   }
 
   @override
-  String packDetails(int books, String size) => '${_digits('$books')}টি বই · $size';
+  String packDetails(int books, String size) =>
+      '${_digits('$books')}টি বই · $size';
   @override
   String get usePack => 'ব্যবহার করুন';
   @override
@@ -360,7 +398,8 @@ class AppStringsBn extends AppStrings {
   @override
   String get addTextbooks => 'আপনার শ্রেণির পাঠ্যবই যোগ করুন';
   @override
-  String answersFromTextbooks(String packTitle) => 'উত্তরে ব্যবহার হচ্ছে: $packTitle';
+  String answersFromTextbooks(String packTitle) =>
+      'উত্তরে ব্যবহার হচ্ছে: $packTitle';
   @override
   String get deletePackTitle => 'এই পাঠ্যবইগুলো মুছবেন?';
   @override
@@ -487,12 +526,14 @@ class AppStringsBn extends AppStrings {
   @override
   String get errorFileAccessDenied => 'ফাইলটি পড়ার অনুমতি অ্যাপের নেই।';
   @override
-  String get errorModelCopyFailed => 'মডেল ফাইলটি অ্যাপের স্টোরেজে কপি করা যায়নি।';
+  String get errorModelCopyFailed =>
+      'মডেল ফাইলটি অ্যাপের স্টোরেজে কপি করা যায়নি।';
   @override
   String get errorModelLoadFailed =>
       'মডেলটি লোড হয়নি। ফাইলটি হয়তো নষ্ট, অথবা এই ডিভাইসের সাথে মানানসই নয়।';
   @override
-  String get errorUnsupportedGguf => 'এই GGUF ফাইলের মডেল ফরম্যাটটি সমর্থিত নয়।';
+  String get errorUnsupportedGguf =>
+      'এই GGUF ফাইলের মডেল ফরম্যাটটি সমর্থিত নয়।';
   @override
   String get errorMissingChatTemplate =>
       'এই মডেলে ব্যবহারযোগ্য চ্যাট টেমপ্লেট নেই, তাই এটি এখনো চ্যাটের জন্য ব্যবহার করা যাবে না।';
@@ -500,15 +541,18 @@ class AppStringsBn extends AppStrings {
   String get errorContextCreationFailed =>
       'এই মডেল চালানোর মতো মেমরি পাওয়া যায়নি। ছোট কনটেক্সট দৈর্ঘ্য দিয়ে চেষ্টা করুন।';
   @override
-  String get errorSamplerCreationFailed => 'এই মডেলের জন্য উত্তর তৈরির ব্যবস্থা চালু করা যায়নি।';
+  String get errorSamplerCreationFailed =>
+      'এই মডেলের জন্য উত্তর তৈরির ব্যবস্থা চালু করা যায়নি।';
   @override
-  String get errorTokenizationFailed => 'লেখাটি মডেলের জন্য প্রস্তুত করা যায়নি।';
+  String get errorTokenizationFailed =>
+      'লেখাটি মডেলের জন্য প্রস্তুত করা যায়নি।';
   @override
   String errorPromptTooLarge(int? required, int? available) =>
       'বার্তাটি মডেলের কনটেক্সট উইন্ডোর তুলনায় অনেক বড় '
       '($required টোকেন প্রয়োজন, পাওয়া যাচ্ছে $available)।';
   @override
-  String get errorDecodeFailed => 'উত্তর তৈরির সময় মডেলে একটি অভ্যন্তরীণ ত্রুটি হয়েছে।';
+  String get errorDecodeFailed =>
+      'উত্তর তৈরির সময় মডেলে একটি অভ্যন্তরীণ ত্রুটি হয়েছে।';
   @override
   String get errorGenerationCancelled => 'উত্তর তৈরি থামানো হয়েছে।';
   @override
@@ -516,25 +560,30 @@ class AppStringsBn extends AppStrings {
   @override
   String get errorDatabaseSaveFailed => 'আপনার কথোপকথনটি সংরক্ষণ করা যায়নি।';
   @override
-  String get errorInsufficientStorage => 'কাজটি শেষ করার মতো যথেষ্ট ফাঁকা জায়গা ডিভাইসে নেই।';
+  String get errorInsufficientStorage =>
+      'কাজটি শেষ করার মতো যথেষ্ট ফাঁকা জায়গা ডিভাইসে নেই।';
   @override
   String get errorModelNotLoaded => 'এখন কোনো মডেল লোড করা নেই।';
   @override
-  String get errorGenerationAlreadyInProgress => 'একটি উত্তর ইতিমধ্যে তৈরি হচ্ছে।';
+  String get errorGenerationAlreadyInProgress =>
+      'একটি উত্তর ইতিমধ্যে তৈরি হচ্ছে।';
   @override
   String get errorNativeException =>
       'মডেল ইঞ্জিনে একটি অভ্যন্তরীণ ত্রুটি হয়েছিল, তবে নিরাপদে সামলে নেওয়া হয়েছে। আবার চেষ্টা করুন।';
   @override
-  String get errorUnknownNative => 'মডেল ইঞ্জিনে একটি অপ্রত্যাশিত ত্রুটি হয়েছে।';
+  String get errorUnknownNative =>
+      'মডেল ইঞ্জিনে একটি অপ্রত্যাশিত ত্রুটি হয়েছে।';
   @override
-  String errorUnsupportedDocument(String fileName) => '"$fileName" ধরনের ফাইল সমর্থিত নয়।';
+  String errorUnsupportedDocument(String fileName) =>
+      '"$fileName" ধরনের ফাইল সমর্থিত নয়।';
   @override
   String get errorPdfHasNoText => 'এই PDF থেকে লেখা বের করা যায় না।';
   @override
   String get errorDocumentAccessLost =>
       'এই ফাইলটি পড়ার অনুমতি আর নেই। অনুগ্রহ করে ফাইলটি আবার নির্বাচন করুন।';
   @override
-  String get errorDownloadInvalidResponse => 'ডাউনলোড সার্ভার একটি অপ্রত্যাশিত উত্তর দিয়েছে।';
+  String get errorDownloadInvalidResponse =>
+      'ডাউনলোড সার্ভার একটি অপ্রত্যাশিত উত্তর দিয়েছে।';
   @override
   String errorDownloadServer(int? statusCode) =>
       'ডাউনলোড ব্যর্থ হয়েছে (সার্ভার স্ট্যাটাস $statusCode)।';
@@ -551,7 +600,8 @@ class AppStringsBn extends AppStrings {
       'এই প্রশ্নের জন্য নির্ভরযোগ্য সাম্প্রতিক তথ্য পাওয়া যায়নি, তাই সঠিক উত্তর দিতে পারছি না। '
       'একটু পরে আবার চেষ্টা করুন।';
   @override
-  String replyTimeAndDate(String time, String date) => 'এখন সময় $time, আজ $date।';
+  String replyTimeAndDate(String time, String date) =>
+      'এখন সময় $time, আজ $date।';
   @override
   String replyDate(String date) => 'আজ $date।';
   @override

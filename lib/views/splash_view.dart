@@ -34,7 +34,12 @@ class SplashView extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              // `minWidth` too: the scroll view hands its child loose width, so without it
+              // the column shrinks to its widest child and sits against the leading edge.
+              constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
+                minHeight: constraints.maxHeight,
+              ),
               // `IntrinsicHeight` is what lets the flexible spacers below survive being
               // inside a scroll view: the column gets a definite height to divide up, and
               // the scroll view only engages when the content genuinely does not fit.
